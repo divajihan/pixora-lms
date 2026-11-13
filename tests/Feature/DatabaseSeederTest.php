@@ -1,9 +1,12 @@
 <?php
 
 use App\Enums\CourseStatus;
+use App\Enums\LessonStatus;
+use App\Enums\LessonType;
 use App\Enums\Role;
 use App\Models\Category;
 use App\Models\Course;
+use App\Models\Lesson;
 use App\Models\User;
 use Database\Seeders\DatabaseSeeder;
 use Database\Seeders\DevelopmentSeeder;
@@ -58,4 +61,33 @@ test('development data is never seeded in production', function () {
 
     expect(fn () => app(DevelopmentSeeder::class)->run())
         ->toThrow(RuntimeException::class);
+});
+
+test('every published course gets a seeded curriculum', function () {
+    $this->seed(DatabaseSeeder::class);
+
+    $courses = Course::published()->with(['modules.lessons.liveSession'])->get();
+
+    expect($courses)->not->toBeEmpty();
+
+    foreach ($courses as $course) {
+        expect($course->modules->count())->toBeBetween(2, 4);
+
+        foreach ($course->modules as $module) {
+            expect($module->lessons->count())->toBeBetween(3, 6);
+        }
+
+        $lessons = $course->modules->flatMap->lessons;
+        expect($lessons->where('status', LessonStatus::Published)->count())->toBeGreaterThan(0)
+            ->and($lessons->where('is_preview', true)->count())->toBeGreaterThan(0);
+
+        foreach ($lessons->where('type', LessonType::Live) as $live) {
+            expect($live->liveSession)->not->toBeNull()->and($live->video_ref)->toBeNull();
+        }
+    }
+
+    $all = Lesson::all();
+    expect($all->where('status', LessonStatus::Draft)->count())->toBeGreaterThan(0)
+        ->and($all->where('type', LessonType::Live)->count())->toBeGreaterThan(0)
+        ->and($all->where('type', LessonType::Video)->count())->toBeGreaterThan(0);
 });

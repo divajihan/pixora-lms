@@ -16,7 +16,13 @@ class HtmlSanitizer
             return null;
         }
 
-        $clean = trim((string) Purify::config('rich_text')->clean($html));
+        $result = Purify::config('rich_text')->clean($html);
+
+        if (! is_string($result)) {
+            return null;
+        }
+
+        $clean = trim($result);
 
         // Treat editor output with no visible text (e.g. "<p></p>") as empty.
         return trim(strip_tags($clean)) === '' && ! str_contains($clean, '<hr') ? null : $clean;
