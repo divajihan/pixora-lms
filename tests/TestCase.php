@@ -2,11 +2,19 @@
 
 namespace Tests;
 
+use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 use Laravel\Fortify\Features;
 
 abstract class TestCase extends BaseTestCase
 {
+    /**
+     * Seed roles and permissions after RefreshDatabase migrates (only for tests using it).
+     */
+    protected bool $seed = true;
+
+    protected string $seeder = RoleSeeder::class;
+
     protected function setUp(): void
     {
         parent::setUp();
