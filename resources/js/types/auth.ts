@@ -2,7 +2,9 @@ export type User = {
     id: number;
     name: string;
     email: string;
+    phone?: string | null;
     avatar?: string;
+    is_active?: boolean;
     email_verified_at: string | null;
     two_factor_enabled?: boolean;
     created_at: string;
@@ -10,8 +12,12 @@ export type User = {
     [key: string]: unknown;
 };
 
+export type RoleName = 'admin' | 'staff' | 'instructor' | 'student';
+
 export type Auth = {
     user: User;
+    /** For UI/navigation only; authorization is enforced on the server. */
+    roles: RoleName[];
 };
 
 export type Passkey = {
