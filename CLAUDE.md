@@ -67,7 +67,7 @@ php artisan test                # Pest (SQLite in-memory, lihat phpunit.xml)
 vendor/bin/pint                 # format PHP   (--test untuk cek saja)
 vendor/bin/phpstan analyse      # Larastan
 npm run lint                    # oxlint + oxfmt (npm run lint:fix untuk memperbaiki)
-npm run types:check             # tsc --noEmit
+npm run types:check             # tsc --noEmit (needs Wayfinder files: run `php artisan wayfinder:generate --with-form`, `npm run dev`, or `npm run build` first)
 npm run build                   # build aset produksi
 php artisan migrate             # migrasi ke MySQL lokal
 ```
