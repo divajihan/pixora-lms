@@ -98,7 +98,7 @@ jobs:
           DB_USERNAME: pixora
           DB_PASSWORD: secret
 
-      # Build before tests: Inertia page tests render the Blade layout, which needs the Vite manifest.
+      # Verifies the production build (tests do not need it: TestCase calls withoutVite()).
       - name: Build frontend
         run: npm run build
 
