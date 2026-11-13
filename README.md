@@ -6,7 +6,8 @@ mengumpulkan tugas, dan mendapat sertifikat otomatis.
 
 Rancangan lengkap (arsitektur, ERD, aturan bisnis, roadmap): [docs/arsitektur-erd.md](docs/arsitektur-erd.md).
 
-> Status: **Fase 0** (setup proyek). Belum ada fitur bisnis; aplikasi berisi autentikasi bawaan starter kit.
+> Status: **Fase 1** selesai — autentikasi (verifikasi email, akun nonaktif), role & permission, dasbor per role
+> (placeholder), dan katalog kursus publik. Berikutnya: Fase 2 (admin mengelola kursus, modul, lesson).
 
 ## Stack
 
@@ -47,15 +48,39 @@ docker compose up -d --wait
 composer install
 npm ci
 
-# 5. Buat application key dan jalankan migrasi
+# 5. Buat application key, jalankan migrasi, dan isi data awal
+#    (role & permission, akun dev per role, katalog demo — hanya di local)
 php artisan key:generate
-php artisan migrate
+php artisan migrate --seed
 
 # 6. Jalankan aplikasi (server PHP, queue worker, log, dan Vite sekaligus)
 composer dev
 ```
 
 Buka http://localhost:8000.
+
+### Halaman dan akun dev
+
+| Halaman              | URL                     | Akses                                  |
+| -------------------- | ----------------------- | -------------------------------------- |
+| Beranda              | `/`                     | Publik                                 |
+| Katalog kursus       | `/kursus`               | Publik (cari, filter kategori & harga) |
+| Detail kursus        | `/kursus/{slug}`        | Publik, hanya kursus berstatus terbit  |
+| Dasbor (sesuai role) | `/dashboard` → redirect | Login + email terverifikasi            |
+| Dasbor admin/staf    | `/admin`                | Role `admin` atau `staff`              |
+| Dasbor instruktur    | `/instruktur`           | Role `instructor`                      |
+| Dasbor siswa         | `/siswa`                | Role `student` (otomatis saat daftar)  |
+
+Akun dev dari `php artisan migrate --seed` (hanya `local`/`testing`, emailnya sudah terverifikasi):
+
+| Role       | Email                    | Kata sandi                                           |
+| ---------- | ------------------------ | ---------------------------------------------------- |
+| admin      | `admin@pixora.test`      | `SEED_ADMIN_PASSWORD` di `.env` (default `password`) |
+| staff      | `staff@pixora.test`      | `password`                                           |
+| instructor | `instructor@pixora.test` | `password`                                           |
+| student    | `student@pixora.test`    | `password`                                           |
+
+Email admin bisa diubah lewat `SEED_ADMIN_EMAIL`. Di production, jalankan hanya `php artisan db:seed --class=RoleSeeder --force`.
 
 Catatan:
 
@@ -66,18 +91,19 @@ Catatan:
 
 ## Perintah umum
 
-| Perintah                     | Keterangan                                                |
-| ---------------------------- | --------------------------------------------------------- |
-| `composer dev`               | Jalankan server, queue, log (pail), dan Vite              |
-| `php artisan test`           | Jalankan test (Pest, SQLite in-memory)                    |
-| `vendor/bin/pint`            | Format kode PHP (`--test` untuk cek saja)                 |
-| `vendor/bin/phpstan analyse` | Analisis statis PHP (Larastan)                            |
-| `npm run lint`               | Cek lint + format frontend (`npm run lint:fix` untuk fix) |
-| `npm run types:check`        | Type-check TypeScript                                     |
-| `npm run build`              | Build aset produksi                                       |
-| `php artisan migrate`        | Jalankan migrasi database                                 |
-| `docker compose up -d`       | Nyalakan MySQL + Redis                                    |
-| `docker compose down`        | Matikan container (tambah `-v` untuk hapus data)          |
+| Perintah                           | Keterangan                                                |
+| ---------------------------------- | --------------------------------------------------------- |
+| `composer dev`                     | Jalankan server, queue, log (pail), dan Vite              |
+| `php artisan test`                 | Jalankan test (Pest, SQLite in-memory)                    |
+| `vendor/bin/pint`                  | Format kode PHP (`--test` untuk cek saja)                 |
+| `vendor/bin/phpstan analyse`       | Analisis statis PHP (Larastan)                            |
+| `npm run lint`                     | Cek lint + format frontend (`npm run lint:fix` untuk fix) |
+| `npm run types:check`              | Type-check TypeScript                                     |
+| `npm run build`                    | Build aset produksi                                       |
+| `php artisan migrate`              | Jalankan migrasi database                                 |
+| `php artisan migrate:fresh --seed` | Reset database + data awal (local)                        |
+| `docker compose up -d`             | Nyalakan MySQL + Redis                                    |
+| `docker compose down`              | Matikan container (tambah `-v` untuk hapus data)          |
 
 ## Struktur folder (ringkas)
 
