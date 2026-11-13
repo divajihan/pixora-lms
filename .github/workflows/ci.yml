@@ -42,16 +42,6 @@ jobs:
           --health-timeout=3s
           --health-retries=20
 
-    env:
-      DB_CONNECTION: mysql
-      DB_HOST: 127.0.0.1
-      DB_PORT: 3306
-      DB_DATABASE: pixora
-      DB_USERNAME: pixora
-      DB_PASSWORD: secret
-      REDIS_HOST: 127.0.0.1
-      REDIS_PORT: 6379
-
     steps:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -96,8 +86,17 @@ jobs:
       - name: Static analysis (Larastan)
         run: vendor/bin/phpstan analyse --no-progress
 
+      # Verifies migrations on real MySQL 8 (Pest itself uses in-memory SQLite, see phpunit.xml).
+      # DB vars are scoped to this step: job-level env would override phpunit.xml's <env> values.
       - name: Run migrations against MySQL
         run: php artisan migrate --force
+        env:
+          DB_CONNECTION: mysql
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
+          DB_DATABASE: pixora
+          DB_USERNAME: pixora
+          DB_PASSWORD: secret
 
       # Build before tests: Inertia page tests render the Blade layout, which needs the Vite manifest.
       - name: Build frontend
