@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\Role;
 use Database\Factories\UserFactory;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -51,5 +52,19 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
             'two_factor_confirmed_at' => 'datetime',
             'is_active' => 'boolean',
         ];
+    }
+
+    /**
+     * The user's highest-privilege role (admin > staff > instructor > student).
+     */
+    public function primaryRole(): ?Role
+    {
+        foreach (Role::cases() as $role) {
+            if ($this->hasRole($role->value)) {
+                return $role;
+            }
+        }
+
+        return null;
     }
 }
