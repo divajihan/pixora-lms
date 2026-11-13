@@ -20,7 +20,7 @@ Baca dokumen itu sebelum mengerjakan fitur apa pun.
 
 - Laravel 13, PHP 8.3+ (Composer `config.platform.php` dipatok 8.3 agar lock file kompatibel dengan CI)
 - Inertia + React 19 + TypeScript + shadcn/ui + Tailwind CSS 4 (starter kit resmi Laravel), Wayfinder untuk route TS
-- MySQL 8 (Docker, port host 3307), Redis untuk cache/queue/session
+- MySQL 8 (Docker, port host 3306), Redis untuk cache/queue/session
 - Fortify (auth), spatie/laravel-permission (role), Pest 4 (test)
 - Tooling frontend: Vite+ (`vp`) — oxlint + oxfmt, bukan ESLint/Prettier
 

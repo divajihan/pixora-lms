@@ -40,7 +40,7 @@ cd pixora-lms
 # 2. Salin konfigurasi environment, lalu sesuaikan bila perlu
 cp .env.example .env
 
-# 3. Jalankan MySQL 8 dan Redis (MySQL di port host 3307, Redis di 6379)
+# 3. Jalankan MySQL 8 dan Redis (MySQL di port host 3306, Redis di 6379)
 docker compose up -d --wait
 
 # 4. Install dependency
@@ -59,7 +59,7 @@ Buka http://localhost:8000.
 
 Catatan:
 
-- Port MySQL host default **3307** agar tidak bentrok dengan MySQL lain di 3306. Ubah lewat `FORWARD_DB_PORT` dan `DB_PORT` di `.env`.
+- Port MySQL host default **3306**. Jika port itu sudah dipakai (mis. MySQL lain), ubah `FORWARD_DB_PORT` dan `DB_PORT` di `.env` (contoh: 3307).
 - Kredensial di `.env.example` dan `docker-compose.yml` hanya untuk pengembangan lokal.
 - Locale aplikasi `id`, zona waktu `Asia/Jakarta`.
 - Email dikirim ke log (`MAIL_MAILER=log`) di lokal: cek `storage/logs/laravel.log`.
