@@ -72,10 +72,14 @@ export default function AdminCourseEdit({
                     </Button>
                 </div>
 
-                <div className="grid gap-6 xl:grid-cols-[1fr_380px]">
-                    <CourseForm course={course} categories={categories} />
+                <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
+                    <CourseForm
+                        course={course}
+                        categories={categories}
+                        stacked
+                    />
 
-                    <div className="flex flex-col gap-6">
+                    <div className="flex min-w-0 flex-col gap-6">
                         <CourseStatusCard
                             course={course}
                             targets={statusTargets}

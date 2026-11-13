@@ -52,7 +52,7 @@ jobs:
         uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # v2
         with:
           php-version: '8.3'
-          extensions: mbstring, intl, bcmath, pdo_mysql, pdo_sqlite, redis
+          extensions: mbstring, intl, bcmath, gd, fileinfo, pdo_mysql, pdo_sqlite, redis
           tools: composer:v2
           coverage: none
 

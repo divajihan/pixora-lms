@@ -20,6 +20,7 @@ import { Spinner } from '@/components/ui/spinner';
 import { Textarea } from '@/components/ui/textarea';
 import { formatRupiah } from '@/lib/format';
 import { slugify } from '@/lib/slug';
+import { cn } from '@/lib/utils';
 import { store, update } from '@/routes/admin/courses';
 import type { AdminCourse, CategoryItem } from '@/types/admin';
 
@@ -43,9 +44,12 @@ const NONE = 'none';
 export function CourseForm({
     course,
     categories,
+    stacked = false,
 }: {
     course?: AdminCourse;
     categories: CategoryItem[];
+    /** Single column (used when the page already has a side column). */
+    stacked?: boolean;
 }) {
     const isEdit = course !== undefined;
     const [slugTouched, setSlugTouched] = useState(isEdit);
@@ -111,7 +115,10 @@ export function CourseForm({
     return (
         <form
             onSubmit={submit}
-            className="grid gap-6 lg:grid-cols-[1fr_320px]"
+            className={cn(
+                'grid min-w-0 gap-6',
+                !stacked && 'lg:grid-cols-[minmax(0,1fr)_320px]',
+            )}
             noValidate
         >
             <div className="flex flex-col gap-6">

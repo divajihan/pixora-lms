@@ -103,7 +103,7 @@ export function CourseInstructorsCard({
                         {instructors.map((instructor) => (
                             <li
                                 key={instructor.id}
-                                className="flex flex-col gap-2 p-3 sm:flex-row sm:items-center"
+                                className="flex flex-col gap-2 p-3"
                             >
                                 <div className="min-w-0 flex-1">
                                     <p className="truncate text-sm font-medium">
@@ -131,7 +131,7 @@ export function CourseInstructorsCard({
                                         <SelectTrigger
                                             size="sm"
                                             aria-label={`Peran ${instructor.name}`}
-                                            className="w-40"
+                                            className="w-44"
                                         >
                                             <SelectValue>
                                                 {roleLabel(instructor.role)}
@@ -177,7 +177,7 @@ export function CourseInstructorsCard({
                             instruktur di menu Pengguna.
                         </p>
                     ) : (
-                        <div className="flex flex-col gap-2 sm:flex-row">
+                        <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
                             <Select
                                 value={form.data.user_id}
                                 onValueChange={(value) =>
@@ -186,7 +186,7 @@ export function CourseInstructorsCard({
                             >
                                 <SelectTrigger
                                     id="instructor-select"
-                                    className="w-full sm:flex-1"
+                                    className="w-full sm:col-span-2"
                                 >
                                     <SelectValue placeholder="Pilih instruktur">
                                         {selected
@@ -213,7 +213,7 @@ export function CourseInstructorsCard({
                             >
                                 <SelectTrigger
                                     aria-label="Peran di kursus"
-                                    className="w-full sm:w-44"
+                                    className="w-full"
                                 >
                                     <SelectValue>
                                         {roleLabel(form.data.role)}
