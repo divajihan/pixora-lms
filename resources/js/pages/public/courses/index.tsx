@@ -26,6 +26,11 @@ import type {
 // Radix Select does not allow an empty-string value, so "all" uses a sentinel.
 const ALL = 'semua';
 
+const priceLabels: Record<NonNullable<CatalogFilters['harga']>, string> = {
+    gratis: 'Gratis',
+    berbayar: 'Berbayar',
+};
+
 export default function CourseIndex({
     meta,
     courses,
@@ -58,6 +63,15 @@ export default function CourseIndex({
     };
 
     const hasFilters = Boolean(filters.q || filters.kategori || filters.harga);
+
+    // Explicit trigger labels: Radix <SelectValue> renders empty after SSR
+    // hydration until the menu has been opened once.
+    const categoryLabel =
+        categories.find((category) => category.slug === filters.kategori)
+            ?.name ?? 'Semua kategori';
+    const priceLabel = filters.harga
+        ? priceLabels[filters.harga]
+        : 'Semua harga';
 
     return (
         <>
@@ -109,7 +123,9 @@ export default function CourseIndex({
                                     aria-label="Filter kategori"
                                     className="w-full bg-background lg:w-52"
                                 >
-                                    <SelectValue placeholder="Kategori" />
+                                    <SelectValue placeholder="Kategori">
+                                        {categoryLabel}
+                                    </SelectValue>
                                 </SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value={ALL}>
@@ -141,7 +157,9 @@ export default function CourseIndex({
                                     aria-label="Filter harga"
                                     className="w-full bg-background lg:w-40"
                                 >
-                                    <SelectValue placeholder="Harga" />
+                                    <SelectValue placeholder="Harga">
+                                        {priceLabel}
+                                    </SelectValue>
                                 </SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value={ALL}>
