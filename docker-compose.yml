@@ -1,0 +1,55 @@
+# Local development services only (MySQL + Redis).
+# The PHP app and Vite run on the host (`composer dev`).
+# Credentials below are for local development only — never reuse them in production.
+
+name: pixora-lms
+
+services:
+    mysql:
+        image: mysql:8.4
+        restart: unless-stopped
+        ports:
+            # Host port is configurable via FORWARD_DB_PORT (e.g. 3307 if 3306 is already in use).
+            - '${FORWARD_DB_PORT:-3306}:3306'
+        environment:
+            MYSQL_ROOT_PASSWORD: '${DB_ROOT_PASSWORD:-root}'
+            MYSQL_DATABASE: '${DB_DATABASE:-pixora}'
+            MYSQL_USER: '${DB_USERNAME:-pixora}'
+            MYSQL_PASSWORD: '${DB_PASSWORD:-secret}'
+            TZ: Asia/Jakarta
+        command:
+            - --character-set-server=utf8mb4
+            - --collation-server=utf8mb4_unicode_ci
+        volumes:
+            - mysql-data:/var/lib/mysql
+        healthcheck:
+            test:
+                [
+                    'CMD',
+                    'mysqladmin',
+                    'ping',
+                    '-h',
+                    '127.0.0.1',
+                    '-uroot',
+                    '-p${DB_ROOT_PASSWORD:-root}',
+                ]
+            interval: 5s
+            timeout: 5s
+            retries: 20
+
+    redis:
+        image: redis:7-alpine
+        restart: unless-stopped
+        ports:
+            - '${FORWARD_REDIS_PORT:-6379}:6379'
+        volumes:
+            - redis-data:/data
+        healthcheck:
+            test: ['CMD', 'redis-cli', 'ping']
+            interval: 5s
+            timeout: 3s
+            retries: 20
+
+volumes:
+    mysql-data:
+    redis-data:
