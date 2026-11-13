@@ -1,9 +1,16 @@
 <?php
 
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\Public\CourseController;
+use App\Http\Controllers\Public\HomeController;
 use Illuminate\Support\Facades\Route;
 
-Route::inertia('/', 'welcome')->name('home');
+// Public pages (no login).
+Route::get('/', HomeController::class)->name('home');
+Route::get('kursus', [CourseController::class, 'index'])->name('courses.index');
+Route::get('kursus/{course:slug}', [CourseController::class, 'show'])
+    ->name('courses.show')
+    ->can('view', 'course');
 
 Route::middleware(['auth', 'verified'])->group(function () {
     // Fortify "home": redirects to the role-specific dashboard below.

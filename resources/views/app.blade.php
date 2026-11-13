@@ -38,8 +38,19 @@
 
         @viteReactRefresh
         @vite(['resources/css/app.css', 'resources/js/app.tsx', "resources/js/pages/{$page['component']}.tsx"])
+        {{--
+            Server-rendered title/description from the page's `meta` prop so crawlers see them
+            without JS. On the client, <SeoHead> (Inertia <Head>) takes over: the description
+            tag shares the `data-inertia="description"` key so it is replaced, not duplicated.
+        --}}
+        @php
+            $metaTitle = $page['props']['meta']['title'] ?? null;
+            $metaDescription = $page['props']['meta']['description']
+                ?? 'Belajar online di '.config('app.name').': kursus video, rangkuman materi, tugas, dan sertifikat.';
+        @endphp
         <x-inertia::head>
-            <title>{{ config('app.name', 'Laravel') }}</title>
+            <title>{{ $metaTitle ? $metaTitle.' - '.config('app.name') : config('app.name') }}</title>
+            <meta name="description" content="{{ $metaDescription }}" data-inertia="description">
         </x-inertia::head>
     </head>
     <body class="font-sans antialiased">

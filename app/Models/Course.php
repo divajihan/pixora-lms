@@ -77,6 +77,20 @@ class Course extends Model
                 ->orWhere('published_at', '<=', now()));
     }
 
+    /**
+     * Eager loads what a course card needs (avoids N+1 on listings).
+     *
+     * @param  Builder<Course>  $query
+     */
+    #[Scope]
+    protected function withCardRelations(Builder $query): void
+    {
+        $query->with([
+            'category:id,name,slug',
+            'instructors:users.id,users.name',
+        ]);
+    }
+
     public function isPublished(): bool
     {
         return $this->status === CourseStatus::Published
