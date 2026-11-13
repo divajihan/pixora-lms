@@ -6,8 +6,9 @@ mengumpulkan tugas, dan mendapat sertifikat otomatis.
 
 Rancangan lengkap (arsitektur, ERD, aturan bisnis, roadmap): [docs/arsitektur-erd.md](docs/arsitektur-erd.md).
 
-> Status: **Fase 1** selesai — autentikasi (verifikasi email, akun nonaktif), role & permission, dasbor per role
-> (placeholder), dan katalog kursus publik. Berikutnya: Fase 2 (admin mengelola kursus, modul, lesson).
+> Status: **Fase 2** selesai — panel admin konten (kursus, kurikulum drag & drop, lesson video YouTube/live, status
+> terbit, penugasan instruktur), halaman Pengguna, "Kursus saya" untuk instruktur (baca saja), dan kurikulum + video
+> pratinjau di halaman publik. Berikutnya: Fase 3 (order, Midtrans, enrollment).
 
 ## Stack
 
@@ -52,6 +53,7 @@ npm ci
 #    (role & permission, akun dev per role, katalog demo — hanya di local)
 php artisan key:generate
 php artisan migrate --seed
+php artisan storage:link   # URL publik untuk gambar sampul kursus
 
 # 6. Jalankan aplikasi (server PHP, queue worker, log, dan Vite sekaligus)
 composer dev
@@ -61,15 +63,19 @@ Buka http://localhost:8000.
 
 ### Halaman dan akun dev
 
-| Halaman              | URL                     | Akses                                  |
-| -------------------- | ----------------------- | -------------------------------------- |
-| Beranda              | `/`                     | Publik                                 |
-| Katalog kursus       | `/kursus`               | Publik (cari, filter kategori & harga) |
-| Detail kursus        | `/kursus/{slug}`        | Publik, hanya kursus berstatus terbit  |
-| Dasbor (sesuai role) | `/dashboard` → redirect | Login + email terverifikasi            |
-| Dasbor admin/staf    | `/admin`                | Role `admin` atau `staff`              |
-| Dasbor instruktur    | `/instruktur`           | Role `instructor`                      |
-| Dasbor siswa         | `/siswa`                | Role `student` (otomatis saat daftar)  |
+| Halaman              | URL                            | Akses                                    |
+| -------------------- | ------------------------------ | ---------------------------------------- |
+| Beranda              | `/`                            | Publik                                   |
+| Katalog kursus       | `/kursus`                      | Publik (cari, filter kategori & harga)   |
+| Detail kursus        | `/kursus/{slug}`               | Publik, hanya kursus berstatus terbit    |
+| Dasbor (sesuai role) | `/dashboard` → redirect        | Login + email terverifikasi              |
+| Dasbor admin/staf    | `/admin`                       | Role `admin` atau `staff`                |
+| Dasbor instruktur    | `/instruktur`                  | Role `instructor`                        |
+| Dasbor siswa         | `/siswa`                       | Role `student` (otomatis saat daftar)    |
+| Kelola kursus        | `/admin/kursus`                | Permission `courses.manage` (admin)      |
+| Kurikulum kursus     | `/admin/kursus/{id}/kurikulum` | Permission `courses.manage` (admin)      |
+| Pengguna             | `/admin/pengguna`              | Permission `users.manage` (admin)        |
+| Kursus saya          | `/instruktur/kursus`           | Role `instructor`, hanya kursus miliknya |
 
 Akun dev dari `php artisan migrate --seed` (hanya `local`/`testing`, emailnya sudah terverifikasi):
 
