@@ -2,6 +2,8 @@ import { Link } from '@inertiajs/react';
 import { Award, ChevronRight, Clock, ListChecks } from 'lucide-react';
 import { CoursePrice } from '@/components/catalog/course-price';
 import { CourseThumbnail } from '@/components/catalog/course-thumbnail';
+import { PublicCurriculum } from '@/components/catalog/public-curriculum';
+import { formatDuration } from '@/lib/format';
 import { SeoHead } from '@/components/seo-head';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -9,7 +11,11 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { useInitials } from '@/hooks/use-initials';
 import { index as catalog } from '@/routes/courses';
-import type { CourseDetail, PageMeta } from '@/types/catalog';
+import type {
+    CourseDetail,
+    PageMeta,
+    PublicCurriculum as PublicCurriculumData,
+} from '@/types/catalog';
 
 function accessLabel(days: number | null): string {
     return days ? `Akses ${days} hari` : 'Akses seumur hidup';
@@ -18,9 +24,11 @@ function accessLabel(days: number | null): string {
 export default function CourseShow({
     meta,
     course,
+    curriculum,
 }: {
     meta: PageMeta;
     course: CourseDetail;
+    curriculum: PublicCurriculumData;
 }) {
     const getInitials = useInitials();
 
@@ -108,6 +116,15 @@ export default function CourseShow({
                             </p>
                             <Separator />
                             <ul className="flex flex-col gap-2 text-sm">
+                                {curriculum.lesson_count > 0 && (
+                                    <li className="flex items-center gap-2">
+                                        <ListChecks className="size-4 text-muted-foreground" />
+                                        {curriculum.lesson_count} lesson ·{' '}
+                                        {formatDuration(
+                                            curriculum.duration_seconds,
+                                        )}
+                                    </li>
+                                )}
                                 <li className="flex items-center gap-2">
                                     <Clock className="size-4 text-muted-foreground" />
                                     {accessLabel(course.access_duration_days)}
@@ -151,10 +168,7 @@ export default function CourseShow({
                         >
                             Kurikulum
                         </h2>
-                        <div className="flex items-center gap-3 rounded-lg border border-dashed p-6 text-muted-foreground">
-                            <ListChecks className="size-5 shrink-0" />
-                            <p>Daftar modul dan lesson segera hadir.</p>
-                        </div>
+                        <PublicCurriculum curriculum={curriculum} />
                     </section>
 
                     {course.instructors.length > 0 && (

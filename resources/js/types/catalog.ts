@@ -33,6 +33,22 @@ export type CourseDetail = Omit<CourseCard, 'instructors'> & {
     instructors: CourseInstructor[];
 };
 
+export type PublicLesson = {
+    id: number;
+    title: string;
+    type: 'video' | 'live';
+    duration_seconds: number | null;
+    is_preview: boolean;
+    /** Present only for preview lessons (server-side rule). */
+    preview?: { embed_url: string; thumbnail_url: string };
+};
+
+export type PublicCurriculum = {
+    modules: { id: number; title: string; lessons: PublicLesson[] }[];
+    lesson_count: number;
+    duration_seconds: number;
+};
+
 export type CatalogFilters = {
     q: string | null;
     kategori: string | null;
