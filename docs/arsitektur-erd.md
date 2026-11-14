@@ -147,11 +147,25 @@ Siswa menandai lesson selesai (tombol, atau otomatis saat video YouTube berakhir
 (`RecalculateCourseProgress`, unik per kursus) saat lesson diterbitkan, ditarik, atau dihapus. Progres 100% belum
 menyelesaikan enrollment (kelulusan & sertifikat di fase berikutnya).
 
-**D. Tugas dan feedback**
-1. Siswa mengunggah jawaban (teks + file) pada lesson atau proyek akhir, dibuat `submissions` (status `submitted`).
-2. Instruktur melihat antrean, memberi feedback tulisan dan/atau gambar (`submission_feedback` + `attachments`), lalu menetapkan status: `approved` atau `needs_revision`.
-3. Jika `needs_revision`, siswa mengirim ulang sebagai percobaan baru (`attempt_no` naik).
-4. Siswa dinotifikasi setiap ada feedback.
+**D. Tugas (gambar), tenggat, dan feedback** (Fase 5, menggantikan desain revisi/kirim ulang sebelumnya)
+1. Admin membuat tugas pada lesson (maks. satu per lesson) atau satu proyek akhir per kursus: judul, instruksi (rich text
+   disanitasi), `due_offset_days`, `max_images`, `is_required` (disimpan untuk Fase 6), status draft/published.
+2. **Tenggat** (`ComputeAssignmentDeadline`): akhir hari (23:59 WIB, `ASSIGNMENT_DUE_TIME`) dari tanggal acuan +
+   `due_offset_days`. Acuan: tugas lesson = tanggal buka lesson efektif di batch siswa (jadwal batch termasuk override
+   batch; override buka per siswa tidak menggeser tenggat); proyek akhir = `ends_on` batch; kursus non-drip = `enrolled_at`.
+   Perpanjangan (`assignment_deadline_overrides`): per siswa > per batch > default; tenggat baru wajib di masa depan.
+3. Tugas terlihat hanya jika lesson-nya sudah terbuka (aturan Fase 4) dan enrollment aktif; proyek akhir sejak batch mulai.
+4. Siswa mengunggah **gambar** (JPEG/PNG/WebP, 1..`max_images`, ≤ 10 MB per gambar) + catatan opsional; satu pengumpulan per
+   tugas (tanpa percobaan ulang). Mengumpulkan setelah tenggat tetap boleh tetapi tercatat **Terlambat**, final, dan **tidak
+   mendapat feedback**. Isi pengumpulan hanya bisa diubah sebelum tenggat efektif dan sebelum ada feedback.
+5. **Terlambat dihitung dinamis** (`submitted_at > tenggat efektif saat ini`), tidak disimpan, sehingga perpanjangan
+   langsung memperbaiki status.
+6. Setelah tenggat lewat, **instruktur kursus** memberi feedback (teks dan/atau gambar coretan) lewat `submission_comments`.
+   Komentar instruktur pertama mengubah status menjadi `reviewed` (mengunci pengumpulan). Staf dan admin melihat semua
+   pengumpulan dan boleh ikut berkomentar (label "Staf"/"Admin"), tanpa mengubah status. Penulis bisa mengedit ("diedit") dan
+   menghapus (soft delete) komentarnya. Siswa membaca semua komentar tetapi tidak bisa membalas.
+7. Notifikasi feedback dikirim di Fase 7; di aplikasi, "Tugas saya" menampilkan lencana "Feedback baru"
+   (`student_seen_feedback_at`).
 
 **E. Sertifikat**
 1. Setelah lesson terakhir selesai atau tugas wajib disetujui, sistem mengecek syarat kelulusan.
@@ -181,11 +195,14 @@ erDiagram
   lessons ||--o{ lesson_unlock_overrides : overridden_by
   enrollments |o--o{ lesson_unlock_overrides : scoped_to
   courses ||--o{ assignments : has
-  lessons |o--o{ assignments : attached_to
+  lessons |o--o| assignments : attached_to
   assignments ||--o{ submissions : receives
   enrollments ||--o{ submissions : submits
-  submissions ||--o{ submission_feedback : gets
-  users ||--o{ submission_feedback : writes
+  submissions ||--o{ submission_comments : gets
+  users ||--o{ submission_comments : writes
+  assignments ||--o{ assignment_deadline_overrides : extended_by
+  batches |o--o{ assignment_deadline_overrides : scoped_to
+  enrollments |o--o{ assignment_deadline_overrides : scoped_to
   users ||--o{ orders : places
   orders ||--o{ order_items : has
   courses ||--o{ order_items : sold_as
@@ -300,25 +317,40 @@ erDiagram
     bigint course_id FK
     bigint lesson_id FK
     string title
+    text instructions_html
+    int due_offset_days
     boolean is_final_project
     boolean is_required
+    int max_images
+    string status
   }
   submissions {
     bigint id PK
     bigint assignment_id FK
     bigint enrollment_id FK
-    int attempt_no
     text body
     string status
     datetime submitted_at
     datetime reviewed_at
     bigint reviewed_by FK
+    datetime student_seen_feedback_at
   }
-  submission_feedback {
+  submission_comments {
     bigint id PK
     bigint submission_id FK
-    bigint instructor_id FK
+    bigint user_id FK
+    string author_role
     text body
+    datetime edited_at
+  }
+  assignment_deadline_overrides {
+    bigint id PK
+    bigint assignment_id FK
+    bigint batch_id FK
+    bigint enrollment_id FK
+    string scope_key
+    datetime due_at
+    bigint created_by FK
   }
   orders {
     bigint id PK
@@ -357,7 +389,7 @@ erDiagram
   }
 ```
 
-Tabel pendukung yang tidak digambar agar diagram tetap terbaca: `attachments` (polimorfik, untuk file submission dan gambar feedback), `webhook_events`, `settings`, `notifications` (bawaan Laravel), dan tabel paket spatie (`roles`, `permissions`, dst.).
+Tabel pendukung yang tidak digambar agar diagram tetap terbaca: `attachments` (polimorfik, untuk gambar pengumpulan dan gambar komentar), `webhook_events`, `settings`, `notifications` (bawaan Laravel), dan tabel paket spatie (`roles`, `permissions`, dst.).
 
 ## 6. Kamus tabel
 
@@ -390,10 +422,11 @@ Semua tabel memakai `id` bigint unsigned auto-increment, `created_at`, `updated_
 ### Tugas
 | Tabel | Kolom penting | Catatan / indeks |
 |---|---|---|
-| `assignments` | course_id, lesson_id (null untuk proyek akhir), title, instructions_html, is_final_project, is_required, allow_images | Indeks (course_id, lesson_id) |
-| `submissions` | assignment_id, enrollment_id, attempt_no, body, status (`submitted`/`needs_revision`/`approved`), submitted_at, reviewed_at, reviewed_by | Unik (assignment_id, enrollment_id, attempt_no); indeks (assignment_id, status) untuk antrean instruktur |
-| `submission_feedback` | submission_id, instructor_id, body | Bisa lebih dari satu per submission |
-| `attachments` | attachable_type, attachable_id, disk, path, original_name, mime, size, uploaded_by | Polimorfik ke submission dan feedback; disk privat |
+| `assignments` | course_id, lesson_id (null = proyek akhir), title, instructions_html (disanitasi), due_offset_days (≥ 0), is_final_project, final_project_key, is_required (default false, dipakai Fase 6), max_images (default 5), status (`draft`/`published`), deleted_at | Unik lesson_id (NULL boleh berulang) = satu tugas per lesson; unik `final_project_key` (= course_id bila proyek akhir, diisi model) = satu proyek akhir per kursus. Slot yang terhapus dipulihkan, bukan diduplikasi. Hapus ditolak bila sudah ada pengumpulan |
+| `submissions` | assignment_id, enrollment_id, body (catatan, nullable), status (`submitted`/`reviewed`), submitted_at, reviewed_at, reviewed_by, student_seen_feedback_at | Unik (assignment_id, enrollment_id), tanpa attempt_no. "Terlambat" tidak disimpan (dihitung dari tenggat efektif) |
+| `submission_comments` | submission_id, user_id, author_role (snapshot: `instructor`/`staff`/`admin`), body (nullable), edited_at, deleted_at | Teks dan/atau gambar (attachments). Hanya setelah tenggat dan untuk pengumpulan tepat waktu. Indeks (submission_id, created_at) |
+| `attachments` | attachable_type (`submission`/`submission_comment`, morph map), attachable_id, disk, path, thumbnail_path, original_name (nama file saja), mime, size, width, height, uploaded_by | Disk privat `assignments` (tidak disajikan framework); dibaca hanya lewat `AttachmentController` + Policy. Gambar dinormalisasi: EXIF/GPS dibuang, sisi terpanjang ≤ 3000 px, nama acak |
+| `assignment_deadline_overrides` | assignment_id, batch_id (null), enrollment_id (null), scope_key (`batch:ID`/`enrollment:ID`), due_at, created_by | Tepat satu lingkup per baris; unik (assignment_id, scope_key). Prioritas: per enrollment > per batch > default |
 
 ### Pembayaran
 | Tabel | Kolom penting | Catatan / indeks |
@@ -415,7 +448,10 @@ Semua tabel memakai `id` bigint unsigned auto-increment, `created_at`, `updated_
 - Enrollment dibuat hanya setelah order `paid` (berbayar) atau langsung (gratis). Tidak ada enrollment ganda untuk user dan kursus yang sama.
 - Perubahan harga kursus tidak memengaruhi order lama (snapshot di `order_items`).
 - Lesson yang dihapus setelah ada progres sebaiknya diarsipkan (status `draft`), bukan dihapus, agar riwayat tidak rusak.
-- Kursus selesai jika semua lesson `published` yang wajib berstatus `completed` dan semua tugas wajib `approved`. Aturan pasti bisa disesuaikan dengan klien.
+- Kursus selesai jika semua lesson `published` yang wajib berstatus `completed` dan syarat tugas wajib terpenuhi (aturan pasti
+  ditentukan di Fase 6; `is_required` sudah disimpan). Tidak ada alur revisi/kirim ulang tugas.
+- Tugas: satu pengumpulan per siswa; terlambat boleh dikumpulkan tetapi final dan tanpa feedback; feedback hanya setelah
+  tenggat efektif; komentar instruktur pertama mengunci pengumpulan (`reviewed`).
 - Kedaluwarsa akses (`access_duration_days`) dihitung dari `enrolled_at` (kursus non-drip) atau dari akhir batch
   (`ends_on` 23:59, kursus drip); null berarti seumur hidup.
 - Kursus drip baru bisa diterbitkan jika punya minimal 1 batch terbit. Pendaftaran batch terbuka jika batch terbit, hari ini
@@ -429,7 +465,11 @@ Semua tabel memakai `id` bigint unsigned auto-increment, `created_at`, `updated_
   Player (`/belajar`) hanya mengirim embed video, `summary_html`, dan `meeting_url` untuk lesson yang sudah terbuka bagi
   siswa itu; lesson terkunci hanya mengirim judul dan tanggal buka (diuji di `tests/Feature/Learning/LearnPlayerTest.php`).
 - YouTube unlisted tidak bisa mencegah tautan dibagikan. Mitigasi: ID video hanya dikirim ke siswa yang berhak. Untuk proteksi lebih kuat, ganti ke Bunny/Vimeo lewat `VideoProvider`.
-- Upload: batasi tipe dan ukuran, simpan di disk privat, nama file diacak, tampilkan lewat signed URL.
+- Upload gambar tugas: tipe diperiksa dari isi file (finfo), hanya JPEG/PNG/WebP (SVG/PDF/file palsu ditolak), batas jumlah
+  dan ukuran dari config; server menyimpan ulang gambar (buang EXIF/GPS, perkecil, thumbnail); disk privat dengan nama acak;
+  dilayani hanya oleh controller yang memeriksa Policy (siswa pemilik, instruktur kursus, staf, admin) dengan
+  `Cache-Control: private`, `X-Content-Type-Options: nosniff`, dan `Content-Disposition: attachment` untuk "Unduh asli".
+  File lama dihapus lewat job setelah commit. Rate limit untuk unggah dan komentar.
 - Webhook pembayaran: verifikasi signature, idempoten, dan hanya percaya data dari webhook (jangan dari redirect browser).
 - Rate limiting untuk login, daftar, dan unggah. Verifikasi email wajib sebelum beli.
 
@@ -444,7 +484,7 @@ Semua tabel memakai `id` bigint unsigned auto-increment, `created_at`, `updated_
 | 2 | Admin: CRUD kursus, modul, lesson (video, rangkuman, live) | Admin bisa menginput kursus |
 | 3 | Order, Midtrans (sandbox), webhook, enrollment, kursus gratis | Beli dan dapat akses |
 | 4 | Batch (angkatan) per kursus drip, player lesson, drip per batch + override instruktur (batch/siswa), progres | Alur belajar lengkap |
-| 5 | Tugas, submission, antrean instruktur, feedback tulisan + gambar | Siklus tugas selesai |
+| 5 | Tugas gambar dengan tenggat (per batch/siswa), pengumpulan, antrean instruktur, feedback teks + gambar coretan (staf ikut berkomentar) | Siklus tugas selesai |
 | 6 | Sertifikat PDF + halaman verifikasi | Kursus bisa diselesaikan |
 | 7 | Notifikasi, laporan dasar, hardening, backup, deploy VPS | Siap diserahkan |
 

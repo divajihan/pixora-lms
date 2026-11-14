@@ -184,4 +184,12 @@ class Course extends Model
     {
         return $this->instructors()->whereKey($user->getKey())->exists();
     }
+
+    /**
+     * @return HasMany<Assignment, $this>
+     */
+    public function assignments(): HasMany
+    {
+        return $this->hasMany(Assignment::class);
+    }
 }

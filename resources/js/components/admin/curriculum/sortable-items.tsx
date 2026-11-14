@@ -7,6 +7,7 @@ import {
     Eye,
     GripVertical,
     MoreHorizontal,
+    ClipboardList,
     Pencil,
     Plus,
     Radio,
@@ -184,6 +185,7 @@ export function SortableLesson({
     onDelete,
     onMove,
     onMoveToModule,
+    onAssignment,
 }: {
     lesson: CurriculumLesson;
     index: number;
@@ -195,6 +197,7 @@ export function SortableLesson({
     onDelete: () => void;
     onMove: (delta: number) => void;
     onMoveToModule: (moduleId: number) => void;
+    onAssignment: () => void;
 }) {
     const {
         attributes,
@@ -261,6 +264,23 @@ export function SortableLesson({
                 )}
                 {lesson.status === 'draft' && <StatusBadge status="draft" />}
             </div>
+            {lesson.assignment && (
+                <Badge
+                    variant={
+                        lesson.assignment.status === 'published'
+                            ? 'outline'
+                            : 'secondary'
+                    }
+                    className={cn(
+                        'cursor-pointer',
+                        lesson.assignment.status === 'draft' && 'border-dashed',
+                    )}
+                    onClick={onAssignment}
+                >
+                    <ClipboardList />
+                    Tugas{lesson.assignment.status === 'draft' ? ' (draf)' : ''}
+                </Badge>
+            )}
             <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                     <Button
@@ -279,6 +299,13 @@ export function SortableLesson({
                     >
                         <Pencil />
                         Ubah lesson
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                        onSelect={onAssignment}
+                        disabled={editingLocked}
+                    >
+                        <ClipboardList />
+                        {lesson.assignment ? 'Ubah tugas' : 'Tambah tugas'}
                     </DropdownMenuItem>
                     <DropdownMenuItem
                         onSelect={() => onMove(-1)}

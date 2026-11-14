@@ -1,3 +1,5 @@
+import type { AssignmentForm } from '@/types/assignments';
+
 export type Option<T extends string | number = string> = {
     value: T;
     label: string;
@@ -62,6 +64,7 @@ export type CurriculumLesson = {
     summary_html: string | null;
     video_url: string | null;
     live: LiveSessionData | null;
+    assignment: AssignmentForm | null;
 };
 
 export type CurriculumModule = {

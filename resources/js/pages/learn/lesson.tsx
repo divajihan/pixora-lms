@@ -1,3 +1,4 @@
+import { AssignmentPanel } from '@/components/assignments/assignment-panel';
 import { Head, Link, router } from '@inertiajs/react';
 import {
     CalendarClock,
@@ -22,6 +23,7 @@ import {
     uncomplete,
 } from '@/routes/learn';
 import { dashboard } from '@/routes/student';
+import type { AssignmentPanelData } from '@/types/assignments';
 import type {
     LearnCourse,
     LearnEnrollment,
@@ -41,6 +43,8 @@ type Props = {
     content: LessonContent | null;
     previous: Neighbour;
     next: Neighbour;
+    /** Only when the lesson is open and has a published assignment. */
+    assignment: AssignmentPanelData | null;
 };
 
 export default function LearnLesson({
@@ -51,6 +55,7 @@ export default function LearnLesson({
     content,
     previous,
     next,
+    assignment,
 }: Props) {
     const [saving, setSaving] = useState(false);
     const isCompleted = lesson.status === 'completed';
@@ -215,6 +220,13 @@ export default function LearnLesson({
                                 )}
                             </div>
                         </>
+                    )}
+
+                    {assignment && (
+                        <AssignmentPanel
+                            panel={assignment}
+                            courseSlug={course.slug}
+                        />
                     )}
 
                     <nav

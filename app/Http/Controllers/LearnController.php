@@ -2,11 +2,14 @@
 
 namespace App\Http\Controllers;
 
+use App\Actions\Assignments\AssignmentAvailability;
+use App\Actions\Assignments\BuildAssignmentPanel;
 use App\Actions\Learning\BuildCourseOutline;
 use App\Actions\Learning\MarkLessonCompleted;
 use App\Actions\Learning\UnmarkLessonCompleted;
 use App\Enums\LessonStatus;
 use App\Enums\LessonType;
+use App\Models\Assignment;
 use App\Models\Course;
 use App\Models\Enrollment;
 use App\Models\Lesson;
@@ -28,7 +31,7 @@ use Inertia\Response;
  */
 class LearnController extends Controller
 {
-    public function course(Request $request, Course $course, BuildCourseOutline $outline): Response
+    public function course(Request $request, Course $course, BuildCourseOutline $outline, AssignmentAvailability $availability): Response
     {
         $enrollment = $this->enrollment($request, $course);
         $data = $outline->handle($enrollment);
@@ -39,10 +42,11 @@ class LearnController extends Controller
             'modules' => $data['modules'],
             'counts' => $data['counts'],
             'continueSlug' => $data['continue_slug'],
+            'finalProject' => $this->finalProject($course, $enrollment, $availability),
         ]);
     }
 
-    public function lesson(Request $request, Course $course, Lesson $lesson, BuildCourseOutline $outline, VideoProvider $video): Response
+    public function lesson(Request $request, Course $course, Lesson $lesson, BuildCourseOutline $outline, VideoProvider $video, AssignmentAvailability $availability, BuildAssignmentPanel $panel): Response
     {
         $enrollment = $this->enrollment($request, $course);
 
@@ -68,6 +72,8 @@ class LearnController extends Controller
             'modules' => $data['modules'],
             'lesson' => $status,
             'content' => $canView ? $this->content($lesson, $video) : null,
+            // Assignment block only once the lesson is open (same rule as the content).
+            'assignment' => $canView ? $this->assignmentPanel($enrollment, $lesson, $availability, $panel) : null,
             'previous' => $neighbour($index > 0 ? $ordered[$index - 1] : null),
             'next' => $neighbour($ordered[$index + 1] ?? null),
         ]);
@@ -108,6 +114,37 @@ class LearnController extends Controller
         Gate::authorize('learn', $enrollment);
 
         return $enrollment;
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private function assignmentPanel(Enrollment $enrollment, Lesson $lesson, AssignmentAvailability $availability, BuildAssignmentPanel $panel): ?array
+    {
+        $assignment = Assignment::query()->published()->where('lesson_id', $lesson->id)->first();
+
+        if ($assignment === null || ! $availability->isAvailable($enrollment, $assignment->setRelation('lesson', $lesson))) {
+            return null;
+        }
+
+        return $panel->handle($enrollment, $assignment);
+    }
+
+    /**
+     * Link to the final project on the overview (title + opening date only).
+     *
+     * @return array{title: string, opens_at: string|null}|null
+     */
+    private function finalProject(Course $course, Enrollment $enrollment, AssignmentAvailability $availability): ?array
+    {
+        $project = Assignment::query()->published()->where('course_id', $course->id)->whereNull('lesson_id')->first();
+        $opensAt = $project ? $availability->opensAt($enrollment, $project) : false;
+
+        if ($project === null || $opensAt === false) {
+            return null;
+        }
+
+        return ['title' => $project->title, 'opens_at' => $opensAt === true ? null : $opensAt->toIso8601String()];
     }
 
     /**

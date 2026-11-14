@@ -25,6 +25,7 @@ class DevelopmentSeeder extends Seeder
 
         $this->call(CatalogSeeder::class);
         $this->call(LearningSeeder::class);
+        $this->call(AssignmentSeeder::class);
 
         $this->command?->table(['Peran', 'Email', 'Kata sandi'], [
             ['admin', config('pixora.seed.admin_email'), '(SEED_ADMIN_PASSWORD)'],

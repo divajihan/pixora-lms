@@ -1,10 +1,16 @@
 import { Head, Link } from '@inertiajs/react';
-import { CalendarClock, CalendarRange, Users } from 'lucide-react';
+import {
+    CalendarClock,
+    CalendarRange,
+    ClipboardCheck,
+    Users,
+} from 'lucide-react';
 import { EmptyState } from '@/components/admin/empty-state';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { formatDateRange } from '@/lib/format';
 import { batches as batchesRoute, schedule, students } from '@/routes/classes';
+import { index as assignmentsIndex } from '@/routes/classes/assignments';
 import type { BatchData } from '@/types/learning';
 
 type Props = {
@@ -95,6 +101,16 @@ export default function ClassBatches({ course, batches }: Props) {
                                         >
                                             <CalendarClock />
                                             Jadwal lesson
+                                        </Link>
+                                    </Button>
+                                    <Button asChild size="sm" variant="outline">
+                                        <Link
+                                            href={assignmentsIndex(course.id, {
+                                                query: { batch: batch.id },
+                                            })}
+                                        >
+                                            <ClipboardCheck />
+                                            Tugas
                                         </Link>
                                     </Button>
                                 </div>

@@ -104,4 +104,12 @@ class Enrollment extends Model
     {
         return $this->belongsTo(Order::class);
     }
+
+    /**
+     * @return HasMany<Submission, $this>
+     */
+    public function submissions(): HasMany
+    {
+        return $this->hasMany(Submission::class);
+    }
 }

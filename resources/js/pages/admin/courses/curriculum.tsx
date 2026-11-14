@@ -1,3 +1,4 @@
+import { AssignmentDialog } from '@/components/admin/curriculum/assignment-dialog';
 import {
     closestCorners,
     DndContext,
@@ -14,12 +15,14 @@ import {
 } from '@dnd-kit/sortable';
 import { Head, Link, router } from '@inertiajs/react';
 import {
+    ClipboardList,
     FolderPlus,
     ListTree,
     Pencil,
     Plus,
     RotateCcw,
     Save,
+    Trophy,
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { CourseTabs } from '@/components/admin/course-tabs';
@@ -63,6 +66,7 @@ import type {
     LessonTypeValue,
     Option,
 } from '@/types/admin';
+import type { AssignmentForm } from '@/types/assignments';
 
 type Props = {
     course: {
@@ -77,6 +81,9 @@ type Props = {
     totals: CurriculumTotals;
     lessonTypes: Option<LessonTypeValue>[];
     lessonStatuses: Option<LessonStatusValue>[];
+    finalProject: AssignmentForm | null;
+    assignmentStatuses: { value: string; label: string }[];
+    assignmentMaxImages: number;
 };
 
 type DeleteTarget =
@@ -89,6 +96,9 @@ export default function AdminCurriculum({
     totals,
     lessonTypes,
     lessonStatuses,
+    finalProject,
+    assignmentStatuses,
+    assignmentMaxImages,
 }: Props) {
     const [items, setItems] = useState<CurriculumModule[]>(modules);
     const [saving, setSaving] = useState(false);
@@ -101,6 +111,10 @@ export default function AdminCurriculum({
         module?: CurriculumModule;
         lesson?: CurriculumLesson;
     }>({ open: false });
+    const [assignmentDialog, setAssignmentDialog] = useState<{
+        open: boolean;
+        lesson: CurriculumLesson | null;
+    }>({ open: false, lesson: null });
     const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
     const [deleting, setDeleting] = useState(false);
 
@@ -290,6 +304,41 @@ export default function AdminCurriculum({
                     active="curriculum"
                     dripEnabled={course.drip_enabled}
                 />
+
+                <section
+                    aria-label="Proyek akhir"
+                    className="flex flex-wrap items-center justify-between gap-3 rounded-lg border p-4"
+                >
+                    <div className="flex items-start gap-3">
+                        <Trophy className="mt-0.5 size-5 text-muted-foreground" />
+                        <div>
+                            <p className="font-medium">
+                                {finalProject
+                                    ? finalProject.title
+                                    : 'Proyek akhir'}
+                            </p>
+                            <p className="text-sm text-muted-foreground">
+                                {finalProject
+                                    ? `${finalProject.status_label} · tenggat ${finalProject.due_offset_days} hari setelah ${course.drip_enabled ? 'batch berakhir' : 'siswa terdaftar'} · ${finalProject.submissions_count ?? 0} pengumpulan`
+                                    : 'Belum ada proyek akhir untuk kursus ini.'}
+                            </p>
+                        </div>
+                    </div>
+                    <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() =>
+                            setAssignmentDialog({ open: true, lesson: null })
+                        }
+                        disabled={dirty}
+                    >
+                        <ClipboardList />
+                        {finalProject
+                            ? 'Ubah proyek akhir'
+                            : 'Tambah proyek akhir'}
+                    </Button>
+                </section>
 
                 <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                     {[
@@ -498,6 +547,14 @@ export default function AdminCurriculum({
                                                                             ),
                                                                     )
                                                                 }
+                                                                onAssignment={() =>
+                                                                    setAssignmentDialog(
+                                                                        {
+                                                                            open: true,
+                                                                            lesson,
+                                                                        },
+                                                                    )
+                                                                }
                                                                 onMoveToModule={(
                                                                     moduleId,
                                                                 ) =>
@@ -532,6 +589,24 @@ export default function AdminCurriculum({
                 open={moduleDialog.open}
                 onOpenChange={(open) =>
                     setModuleDialog((current) => ({ ...current, open }))
+                }
+            />
+
+            <AssignmentDialog
+                courseId={course.id}
+                lessonId={assignmentDialog.lesson?.id ?? null}
+                lessonTitle={assignmentDialog.lesson?.title}
+                assignment={
+                    assignmentDialog.lesson
+                        ? assignmentDialog.lesson.assignment
+                        : finalProject
+                }
+                statuses={assignmentStatuses}
+                maxImages={assignmentMaxImages}
+                dripEnabled={course.drip_enabled}
+                open={assignmentDialog.open}
+                onOpenChange={(open) =>
+                    setAssignmentDialog((current) => ({ ...current, open }))
                 }
             />
 

@@ -1,11 +1,18 @@
 import { Head, Link } from '@inertiajs/react';
-import { ExternalLink, ListTree, Lock, Users } from 'lucide-react';
+import {
+    ClipboardCheck,
+    ExternalLink,
+    ListTree,
+    Lock,
+    Users,
+} from 'lucide-react';
 import { EmptyState } from '@/components/admin/empty-state';
 import { StatusBadge } from '@/components/admin/status-badge';
 import { CurriculumReadonly } from '@/components/curriculum-readonly';
 import { Button } from '@/components/ui/button';
 import { formatDuration } from '@/lib/format';
 import { batches as classBatches } from '@/routes/classes';
+import { index as classAssignments } from '@/routes/classes/assignments';
 import { show as publicShow } from '@/routes/courses';
 import { dashboard } from '@/routes/instructor';
 import { index as myCourses, show } from '@/routes/instructor/courses';
@@ -61,6 +68,17 @@ export default function InstructorCourseShow({
                                 </Link>
                             </Button>
                         )}
+                        <Button
+                            asChild
+                            variant={
+                                course.drip_enabled ? 'outline' : 'default'
+                            }
+                        >
+                            <Link href={classAssignments(course.id)}>
+                                <ClipboardCheck />
+                                Tugas
+                            </Link>
+                        </Button>
                         {course.is_public && (
                             <Button asChild variant="outline">
                                 <a
