@@ -31,6 +31,11 @@ class EnrollmentFactory extends Factory
         ];
     }
 
+    public function active(): static
+    {
+        return $this->state(fn () => ['status' => EnrollmentStatus::Active, 'expires_at' => null]);
+    }
+
     public function expired(): static
     {
         return $this->state(fn () => ['status' => EnrollmentStatus::Expired, 'expires_at' => now()->subDay()]);

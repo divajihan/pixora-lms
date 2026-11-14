@@ -110,7 +110,8 @@ test('user search and role filter', function () {
     User::factory()->create(['name' => 'Rina Kartika', 'email' => 'rina@pixora.test'])->assignRole('instructor');
     User::factory()->create(['name' => 'Budi', 'email' => 'budi@pixora.test'])->assignRole('student');
 
-    $this->get(route('admin.users.index', ['q' => 'rina']))
+    // Unique term: faker names (e.g. "Marina") could match a short query.
+    $this->get(route('admin.users.index', ['q' => 'rina@pixora']))
         ->assertInertia(fn (Assert $page) => $page->component('admin/users/index')->where('users.total', 1)->where('users.data.0.email', 'rina@pixora.test'));
 
     $this->get(route('admin.users.index', ['peran' => 'student']))
