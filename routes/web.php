@@ -15,9 +15,12 @@ use App\Http\Controllers\CheckoutController;
 use App\Http\Controllers\ClassController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\Instructor\CourseController as InstructorCourseController;
+use App\Http\Controllers\Instructor\DashboardController as InstructorDashboardController;
 use App\Http\Controllers\LearnController;
 use App\Http\Controllers\Public\CourseController;
 use App\Http\Controllers\Public\HomeController;
+use App\Http\Controllers\Review\AssignmentReviewController;
+use App\Http\Controllers\Review\SubmissionReviewController;
 use App\Http\Controllers\Student\AssignmentController as StudentAssignmentController;
 use App\Http\Controllers\Student\CourseController as StudentCourseController;
 use App\Http\Controllers\Student\OrderController as StudentOrderController;
@@ -70,6 +73,22 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('lampiran/{attachment}', [AttachmentController::class, 'show'])->name('attachments.show');
     Route::get('lampiran/{attachment}/thumbnail', [AttachmentController::class, 'thumbnail'])->name('attachments.thumbnail');
     Route::get('lampiran/{attachment}/unduh', [AttachmentController::class, 'download'])->name('attachments.download');
+
+    // Assignment review: instructors of the course, staff and admins (checked in
+    // the controllers; others 404). Deadline extensions: instructors + admins.
+    Route::prefix('kelas/{course}/tugas')->name('classes.assignments.')->group(function () {
+        Route::get('/', [AssignmentReviewController::class, 'index'])->name('index');
+        Route::get('{assignment}', [AssignmentReviewController::class, 'show'])->name('show');
+        Route::post('{assignment}/tenggat', [AssignmentReviewController::class, 'setDeadline'])->name('deadline.set');
+        Route::delete('{assignment}/tenggat', [AssignmentReviewController::class, 'resetDeadline'])->name('deadline.reset');
+    });
+    Route::get('pengumpulan', [SubmissionReviewController::class, 'index'])->name('submissions.index');
+    Route::get('pengumpulan/{submission}', [SubmissionReviewController::class, 'show'])->name('submissions.show');
+    Route::post('pengumpulan/{submission}/komentar', [SubmissionReviewController::class, 'storeComment'])
+        ->middleware('throttle:comments')->name('submissions.comments.store');
+    Route::put('komentar/{comment}', [SubmissionReviewController::class, 'updateComment'])
+        ->middleware('throttle:comments')->name('submissions.comments.update');
+    Route::delete('komentar/{comment}', [SubmissionReviewController::class, 'destroyComment'])->name('submissions.comments.destroy');
 
     // Running a class (assigned instructors + admins; CoursePolicy::manageClass).
     Route::prefix('kelas/{course}')->name('classes.')->group(function () {
@@ -143,7 +162,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     });
 
     Route::middleware('role:instructor')->prefix('instruktur')->name('instructor.')->group(function () {
-        Route::inertia('/', 'instructor/dashboard')->name('dashboard');
+        Route::get('/', InstructorDashboardController::class)->name('dashboard');
         Route::get('kursus', [InstructorCourseController::class, 'index'])->name('courses.index');
         Route::get('kursus/{course}', [InstructorCourseController::class, 'show'])->name('courses.show');
     });
