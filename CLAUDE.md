@@ -15,8 +15,9 @@ Baca dokumen itu sebelum mengerjakan fitur apa pun.
   Jika butuh sesuatu dari fase berikutnya, catat sebagai TODO/asumsi, jangan dibuat.
 - Fitur "ditunda ke tahap 2" (kuis, diskusi, kupon, bundle, API Zoom/Meet, WhatsApp, rating) tidak dikerjakan sebelum MVP diterima.
 - Fase selesai: **Fase 0** (setup), **Fase 1** (auth, role/permission, katalog publik),
-  **Fase 2** (panel admin konten: kursus, kurikulum, pengguna; instruktur read-only — branch `feat/phase-2-course-content`).
-  Fase berikutnya: **Fase 3** (order, Midtrans sandbox, webhook, enrollment, kursus gratis).
+  **Fase 2** (panel admin konten: kursus, kurikulum, pengguna; instruktur read-only),
+  **Fase 3** (checkout, Midtrans Snap sandbox, webhook, enrollment, kursus gratis, pesanan — branch `feat/phase-3-checkout-enrollment`).
+  Fase berikutnya: **Fase 4** (player lesson, drip + override instruktur, progres). Halaman belajar saat ini hanya placeholder.
 - `lessons.drip_day_offset` sudah disimpan, tetapi **logika pembukaan lesson (drip/override) adalah Fase 4** — jangan dibuat sebelum itu.
 
 ## Stack
@@ -36,22 +37,31 @@ app/
   Actions/Curriculum/   # SaveLesson, ReorderCurriculum, DeleteModule, LoadCurriculum
   Actions/Users/        # CreateStaffAccount (kata sandi sementara), UpdateUserAccount (guard admin terakhir)
   Actions/Fortify/      # action starter kit (CreateNewUser memberi role student)
-  Actions/<Modul>/      # fase berikutnya: Enrollment, Payment, Learning, Assignment, Certificate
+  Actions/Orders/       # CreateOrder, StartPayment (Snap token), MarkOrderPaid, RefundOrder (admin, catatan wajib)
+  Actions/Payments/     # HandlePaymentWebhook, ApplyPaymentNotification (inti idempoten), ReconcileOrder (Status API)
+  Actions/Enrollments/  # GrantEnrollment (race-safe), EnrollInFreeCourse
+  Actions/Catalog/PurchaseState.php   # CTA halaman kursus (beli / gratis / lanjut belajar / lanjut bayar)
+  Actions/<Modul>/      # fase berikutnya: Learning, Assignment, Certificate
   Enums/                # Role, Permission, CourseStatus, CourseInstructorRole, CoursePriceFilter, LessonType, LessonStatus
   Http/Controllers/
     Public/             # HomeController, CourseController (katalog & detail + kurikulum publik)
     Admin/              # CourseController, CourseStatusController, CourseInstructorController,
                         # CurriculumController, ModuleController, LessonController, UserController
     Instructor/         # CourseController ("Kursus saya", read-only)
+    Student/            # CourseController (kursus saya, belajar placeholder), OrderController (pesanan, invoice, cek status, simulasi)
+    Admin/OrderController   # pesanan (orders.manage); tandai lunas/refund (admin)
+    CheckoutController  # ringkasan, buat order, ambil gratis
+    WebhookController   # POST /webhooks/midtrans
     DashboardController # /dashboard → redirect ke dasbor sesuai role
     Settings/           # bawaan starter kit
   Http/Middleware/      # EnsureUserIsActive (logout user nonaktif), HandleInertiaRequests
   Http/Requests/Admin/  # CourseRequest, LessonRequest, ModuleRequest, ReorderCurriculumRequest, *UserRequest, ...
   Http/Resources/       # CourseCard/CourseDetail (publik), Admin/AdminCourseResource, Admin/CurriculumLessonResource (staf)
   Models/               # User, Category, Course, CourseInstructor (pivot), InstructorProfile, Module, Lesson, LiveSession
-  Policies/             # CoursePolicy, ModulePolicy, LessonPolicy (fase berikutnya: Submission, Order)
+  Notifications/        # PaymentSucceeded (email, queued)
+  Policies/             # CoursePolicy, ModulePolicy, LessonPolicy, OrderPolicy, EnrollmentPolicy (berikutnya: Submission)
   Rules/VideoUrl.php    # validasi URL video lewat VideoProvider
-  Services/Payment/     # PaymentGateway (interface) + MidtransGateway (Fase 3)
+  Services/Payment/     # PaymentGateway (interface), MidtransGateway (HTTP client), FakeGateway (lokal/test), MidtransPayload
   Services/Video/       # VideoProvider (interface) + YouTubeProvider (di-bind di AppServiceProvider)
   Support/              # HtmlSanitizer (purify "rich_text"), UniqueSlug
 config/pixora.php       # konfigurasi aplikasi (akun seed dev)
@@ -63,7 +73,9 @@ resources/js/
   pages/public/         # home, courses/index, courses/show (layout: layouts/public-layout.tsx)
   pages/admin/          # dashboard, courses/{index,create,edit,curriculum}, users/index
   pages/instructor/     # dashboard, courses/{index,show}
-  pages/student/        # dashboard (placeholder)
+  pages/student/        # dashboard, courses/{index,learn}, orders/{index,show,invoice}
+  pages/checkout/show.tsx   # ringkasan checkout (layout publik)
+  pages/admin/orders/   # index, show
   components/admin/     # course-form, status/instructor cards, rich-text-editor (TipTap), curriculum/* (dnd-kit)
   components/catalog/   # course-card, course-price, course-thumbnail, pagination, public-curriculum
   components/curriculum-readonly.tsx   # kurikulum baca-saja (instruktur)
@@ -71,7 +83,7 @@ resources/js/
   hooks/use-main-nav-items.ts   # menu sidebar sesuai role/permission
   lib/format.ts         # formatRupiah, formatDate, formatDateTime, formatDuration
   lib/roles.ts          # dashboardFor(roles), label role
-tests/Feature (Admin/, Auth/, Catalog/), tests/Unit, tests/Helpers.php (actingAsRole, publishableCourse, ...)
+tests/Feature (Admin/, Auth/, Catalog/, Payments/), tests/Unit, tests/Helpers.php (actingAsRole, sendWebhook, ...)
 docs/                   # rancangan (jangan diformat ulang); docs/screenshots/ untuk PR
 ```
 
@@ -120,6 +132,40 @@ Role dan permission didefinisikan di enum `App\Enums\Role` dan `App\Enums\Permis
   kursus** (403). Instruktur hanya membaca kursus yang ditugaskan (`/instruktur/kursus`, kursus lain = 404).
 - Menu sidebar dibentuk dari `auth.roles`/`auth.permissions` (shared props) di `useMainNavItems` — hanya UI.
 
+## Alur pembayaran (Fase 3)
+
+1. Siswa (login + verified + role student) membuka `/kursus/{slug}/checkout` → POST membuat order lewat `CreateOrder`:
+   hanya kursus published & berbayar, ditolak bila sudah punya akses, **harga selalu dari DB** (snapshot di
+   `order_items`), order pending yang belum kedaluwarsa dipakai ulang, `order_number` `PXR-YYYYMMDD-XXXXXX`,
+   `expires_at` = `ORDER_EXPIRY_HOURS` (24 jam). `StartPayment` membuat Snap token sekali dan menyimpannya di order.
+2. Halaman pesanan membuka Snap.js (client key saja). Callback Snap hanya memicu cek status ke server.
+3. Midtrans memanggil `POST /webhooks/midtrans` → `HandlePaymentWebhook` → `ApplyPaymentNotification`.
+4. Sukses (`settlement`, atau `capture` + `fraud_status=accept`) → order `paid`, `paid_at`, enrollment lewat
+   `GrantEnrollment` (`expires_at` = `access_duration_days` atau null), email `PaymentSucceeded` di-queue setelah commit.
+5. `ReconcileOrder` (tombol "Cek status") mengambil Status API dan memakai pipeline yang sama.
+6. Kursus gratis: `EnrollInFreeCourse` langsung membuat enrollment (`order_id` null); kursus berbayar ditolak.
+7. Admin: tandai lunas manual / refund & cabut akses (`MarkOrderPaid`, `RefundOrder`) dengan catatan wajib yang dicatat
+   sebagai baris `payments` gateway `manual` (pengganti activity log). Uang refund dikembalikan manual di dashboard Midtrans.
+
+## Aturan keamanan pembayaran & webhook (WAJIB)
+
+- **Jangan pernah mempercayai browser** (redirect Snap, query string, callback JS) sebagai bukti bayar. Status hanya dari
+  notifikasi bertanda tangan atau Status API (server-to-server).
+- Webhook: CSRF dikecualikan (`webhooks/*`), **signature** `SHA512(order_id + status_code + gross_amount + server_key)`
+  diverifikasi dengan `hash_equals` → salah = **403**. `gross_amount` harus **persis** sama dengan `orders.total`
+  (`PaymentNotification::amountMatches`) → beda = 422 + log warning, tidak ada perubahan.
+- **Idempoten**: insert `webhook_events` (unik `gateway + event_id`, event_id = `transaction_id:transaction_status:status_code`)
+  di dalam transaksi yang sama; duplikat dibalas 200 tanpa proses ulang. Baris order dikunci `lockForUpdate()`.
+  Enrollment unik `(user_id, course_id)`; `GrantEnrollment` menangani konflik bersamaan.
+- Status order hanya maju: **order `paid` tidak pernah diturunkan** (expire/deny/cancel susulan diabaikan), `refunded`
+  final. Sukses yang terlambat tetap melunasi order `expired/failed` (uang sudah diterima).
+- Key Midtrans hanya dari `.env` (`config/services.php`), **jangan di-log**. Log pembayaran hanya berisi nomor order/status,
+  bukan payload. `payments.raw_payload`, `orders.payment_token` disembunyikan dari serialisasi; Snap token hanya dikirim
+  ke pemilik order yang masih bisa dibayar.
+- `FakeGateway` (kunci tanda tangan publik di kode) **ditolak di production** (`AppServiceProvider`), dan route simulasi
+  tidak didaftarkan di production.
+- Endpoint checkout/ambil gratis/cek status diberi rate limit; webhook `throttle:120,1`.
+
 ## Aturan kursus & kurikulum
 
 - Status kursus: `draft → published → archived`; published boleh kembali ke draft, archived boleh ke draft/published
@@ -163,6 +209,9 @@ composer dev                    # server + queue + pail + vite
 
 php artisan migrate:fresh --seed   # reset DB + role + akun dev + katalog & kurikulum demo (local saja)
 php artisan storage:link        # sekali per mesin: URL publik untuk gambar sampul (disk "public")
+php artisan schedule:work       # lokal; di server: cron "* * * * * php artisan schedule:run"
+php artisan orders:expire-pending     # (tiap 5 menit) order pending lewat expires_at → expired
+php artisan enrollments:expire-ended  # (harian) enrollment aktif lewat expires_at → expired
 php artisan db:seed --class=RoleSeeder --force   # production: hanya role & permission
 
 php artisan test                # Pest (SQLite in-memory, lihat phpunit.xml)

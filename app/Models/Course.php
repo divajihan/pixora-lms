@@ -154,6 +154,22 @@ class Course extends Model
         return $this->hasMany(Lesson::class);
     }
 
+    /**
+     * @return HasMany<Enrollment, $this>
+     */
+    public function enrollments(): HasMany
+    {
+        return $this->hasMany(Enrollment::class);
+    }
+
+    /**
+     * Free = flagged free or priced at 0 (both are treated as free).
+     */
+    public function isFree(): bool
+    {
+        return $this->is_free || $this->price <= 0;
+    }
+
     public function hasInstructor(User $user): bool
     {
         return $this->instructors()->whereKey($user->getKey())->exists();

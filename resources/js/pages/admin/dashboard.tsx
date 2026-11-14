@@ -3,6 +3,7 @@ import { BarChart3, BookOpen, Receipt, Settings, Users } from 'lucide-react';
 import { DashboardPlaceholder } from '@/components/dashboard-placeholder';
 import { dashboard } from '@/routes/admin';
 import { index as adminCourses } from '@/routes/admin/courses';
+import { index as adminOrders } from '@/routes/admin/orders';
 import { index as adminUsers } from '@/routes/admin/users';
 
 export default function AdminDashboard() {
@@ -10,6 +11,7 @@ export default function AdminDashboard() {
     const isStaff = !auth.roles.includes('admin');
     const canManageCourses = auth.permissions.includes('courses.manage');
     const canManageUsers = auth.permissions.includes('users.manage');
+    const canManageOrders = auth.permissions.includes('orders.manage');
 
     return (
         <>
@@ -34,8 +36,10 @@ export default function AdminDashboard() {
                     {
                         title: 'Order & pembayaran',
                         description: 'Pantau order dan konfirmasi pembayaran.',
-                        phase: 3,
                         icon: Receipt,
+                        ...(canManageOrders
+                            ? { href: adminOrders() }
+                            : { phase: 3 }),
                     },
                     {
                         title: 'Pengguna',

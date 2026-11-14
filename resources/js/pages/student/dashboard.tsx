@@ -2,6 +2,8 @@ import { Head, usePage } from '@inertiajs/react';
 import { Award, BookOpen, ClipboardList, Receipt } from 'lucide-react';
 import { DashboardPlaceholder } from '@/components/dashboard-placeholder';
 import { dashboard } from '@/routes/student';
+import { index as myCourses } from '@/routes/student/courses';
+import { index as myOrders } from '@/routes/student/orders';
 
 export default function StudentDashboard() {
     const { auth } = usePage().props;
@@ -15,9 +17,9 @@ export default function StudentDashboard() {
                 items={[
                     {
                         title: 'Kursus saya',
-                        description: 'Lanjutkan belajar dari lesson terakhir.',
-                        phase: 4,
+                        description: 'Kursus yang Anda ikuti.',
                         icon: BookOpen,
+                        href: myCourses(),
                     },
                     {
                         title: 'Tugas saya',
@@ -26,10 +28,10 @@ export default function StudentDashboard() {
                         icon: ClipboardList,
                     },
                     {
-                        title: 'Riwayat order',
-                        description: 'Status pembayaran kursus yang dibeli.',
-                        phase: 3,
+                        title: 'Riwayat pesanan',
+                        description: 'Status pembayaran dan invoice.',
                         icon: Receipt,
+                        href: myOrders(),
                     },
                     {
                         title: 'Sertifikat',

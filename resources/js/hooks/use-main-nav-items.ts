@@ -1,10 +1,20 @@
 import { usePage } from '@inertiajs/react';
-import { BookOpen, Globe, LayoutGrid, Library, Users } from 'lucide-react';
+import {
+    BookOpen,
+    Globe,
+    LayoutGrid,
+    Library,
+    Receipt,
+    Users,
+} from 'lucide-react';
 import { dashboardFor } from '@/lib/roles';
 import { index as adminCourses } from '@/routes/admin/courses';
+import { index as adminOrders } from '@/routes/admin/orders';
 import { index as adminUsers } from '@/routes/admin/users';
 import { index as catalog } from '@/routes/courses';
 import { index as instructorCourses } from '@/routes/instructor/courses';
+import { index as studentCourses } from '@/routes/student/courses';
+import { index as studentOrders } from '@/routes/student/orders';
 import type { NavItem } from '@/types';
 
 /**
@@ -23,6 +33,10 @@ export function useMainNavItems(): NavItem[] {
         items.push({ title: 'Kursus', href: adminCourses(), icon: Library });
     }
 
+    if (can('orders.manage')) {
+        items.push({ title: 'Pesanan', href: adminOrders(), icon: Receipt });
+    }
+
     if (can('users.manage')) {
         items.push({ title: 'Pengguna', href: adminUsers(), icon: Users });
     }
@@ -33,6 +47,15 @@ export function useMainNavItems(): NavItem[] {
             href: instructorCourses(),
             icon: BookOpen,
         });
+    }
+
+    if (auth.roles.includes('student')) {
+        items.push({
+            title: 'Kursus saya',
+            href: studentCourses(),
+            icon: BookOpen,
+        });
+        items.push({ title: 'Pesanan', href: studentOrders(), icon: Receipt });
     }
 
     items.push({ title: 'Katalog publik', href: catalog(), icon: Globe });
