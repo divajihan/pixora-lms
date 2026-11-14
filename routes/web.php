@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Admin\AssignmentController as AdminAssignmentController;
 use App\Http\Controllers\Admin\BatchController;
 use App\Http\Controllers\Admin\CourseController as AdminCourseController;
 use App\Http\Controllers\Admin\CourseInstructorController;
@@ -103,6 +104,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
             Route::post('modul/{module}/lesson', [LessonController::class, 'store'])->name('lessons.store');
             Route::put('lesson/{lesson}', [LessonController::class, 'update'])->name('lessons.update');
             Route::delete('lesson/{lesson}', [LessonController::class, 'destroy'])->name('lessons.destroy');
+
+            Route::post('kursus/{course}/tugas', [AdminAssignmentController::class, 'store'])->name('assignments.store');
+            Route::put('tugas/{assignment}', [AdminAssignmentController::class, 'update'])->name('assignments.update');
+            Route::delete('tugas/{assignment}', [AdminAssignmentController::class, 'destroy'])->name('assignments.destroy');
         });
 
         Route::middleware('permission:orders.manage')->group(function () {

@@ -41,6 +41,9 @@ class CurriculumLessonResource extends JsonResource
                 'meeting_url' => $live->meeting_url,
                 'notes' => $live->notes,
             ] : null,
+            'assignment' => $this->relationLoaded('assignment') && $this->assignment
+                ? AssignmentFormResource::make($this->assignment)->resolve()
+                : null,
         ];
     }
 }

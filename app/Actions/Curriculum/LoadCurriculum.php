@@ -10,7 +10,7 @@ use App\Models\Module;
 
 /**
  * Curriculum (all modules and lessons, including drafts) plus totals, for the
- * admin builder and the instructor read-only view. Two queries total.
+ * admin builder and the instructor read-only view. Constant number of queries.
  */
 class LoadCurriculum
 {
@@ -22,7 +22,7 @@ class LoadCurriculum
      */
     public function handle(Course $course): array
     {
-        $course->load(['modules.lessons.liveSession']);
+        $course->load(['modules.lessons.liveSession', 'modules.lessons.assignment' => fn ($query) => $query->withCount('submissions')]);
 
         $lessons = $course->modules->flatMap(fn (Module $module) => $module->lessons);
 
