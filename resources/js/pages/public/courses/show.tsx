@@ -3,10 +3,10 @@ import { Award, ChevronRight, Clock, ListChecks } from 'lucide-react';
 import { CoursePrice } from '@/components/catalog/course-price';
 import { CourseThumbnail } from '@/components/catalog/course-thumbnail';
 import { PublicCurriculum } from '@/components/catalog/public-curriculum';
+import { PurchaseCta } from '@/components/catalog/purchase-cta';
 import { formatDuration } from '@/lib/format';
 import { SeoHead } from '@/components/seo-head';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { useInitials } from '@/hooks/use-initials';
@@ -16,6 +16,7 @@ import type {
     PageMeta,
     PublicCurriculum as PublicCurriculumData,
 } from '@/types/catalog';
+import type { PurchaseInfo } from '@/types/orders';
 
 function accessLabel(days: number | null): string {
     return days ? `Akses ${days} hari` : 'Akses seumur hidup';
@@ -25,10 +26,12 @@ export default function CourseShow({
     meta,
     course,
     curriculum,
+    purchase,
 }: {
     meta: PageMeta;
     course: CourseDetail;
     curriculum: PublicCurriculumData;
+    purchase: PurchaseInfo;
 }) {
     const getInitials = useInitials();
 
@@ -86,7 +89,7 @@ export default function CourseShow({
                         )}
                     </div>
 
-                    {/* Purchase card: placeholder until orders/enrollment (Phase 3). */}
+                    {/* Purchase card: CTA state comes from the server (PurchaseState). */}
                     <Card className="gap-0 self-start overflow-hidden py-0 lg:row-span-2">
                         <CourseThumbnail
                             src={course.thumbnail_url}
@@ -99,21 +102,10 @@ export default function CourseShow({
                                 isFree={course.is_free}
                                 className="self-start text-2xl"
                             />
-                            <Button
-                                size="lg"
-                                disabled
-                                aria-describedby="purchase-note"
-                            >
-                                {course.is_free
-                                    ? 'Ambil kursus gratis'
-                                    : 'Beli kursus'}
-                            </Button>
-                            <p
-                                id="purchase-note"
-                                className="-mt-2 text-center text-xs text-muted-foreground"
-                            >
-                                Pendaftaran kursus segera dibuka.
-                            </p>
+                            <PurchaseCta
+                                purchase={purchase}
+                                slug={course.slug}
+                            />
                             <Separator />
                             <ul className="flex flex-col gap-2 text-sm">
                                 {curriculum.lesson_count > 0 && (
