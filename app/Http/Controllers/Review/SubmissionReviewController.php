@@ -160,7 +160,7 @@ class SubmissionReviewController extends Controller
 
     public function updateComment(Request $request, SubmissionComment $comment, EditSubmissionComment $edit): RedirectResponse
     {
-        Gate::authorize('modifyComment', $comment);
+        Gate::authorize('update', $comment);
         $data = $request->validate(['body' => ['nullable', 'string', 'max:5000']], [], ['body' => 'komentar']);
 
         $edit->handle($comment, $data['body'] ?? null);
@@ -172,7 +172,7 @@ class SubmissionReviewController extends Controller
 
     public function destroyComment(SubmissionComment $comment): RedirectResponse
     {
-        Gate::authorize('modifyComment', $comment);
+        Gate::authorize('delete', $comment);
 
         $comment->delete();
 

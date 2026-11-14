@@ -3,7 +3,6 @@
 namespace App\Policies;
 
 use App\Models\Submission;
-use App\Models\SubmissionComment;
 use App\Models\User;
 use Illuminate\Auth\Access\Response;
 
@@ -43,16 +42,6 @@ class SubmissionPolicy
 
         return $this->isOwner($user, $submission)
             ? Response::deny('Siswa tidak dapat membalas komentar.')
-            : Response::denyAsNotFound();
-    }
-
-    /**
-     * Authors edit/delete only their own comments (and must still be reviewers).
-     */
-    public function modifyComment(User $user, SubmissionComment $comment): Response
-    {
-        return $comment->user_id === $user->id && $this->isReviewer($user, $comment->submission)
-            ? Response::allow()
             : Response::denyAsNotFound();
     }
 
