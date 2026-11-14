@@ -16,8 +16,10 @@ enum Permission: string
     case CoursesTeach = 'courses.teach';
     // Buy or take courses (Phase 3).
     case CoursesEnroll = 'courses.enroll';
-    // Review submissions and give feedback (Phase 5).
+    // Review submissions of assigned courses and give feedback (Phase 5).
     case AssignmentsReview = 'assignments.review';
+    // See every submission and comment on it (staff, admin) — Phase 5.
+    case AssignmentsComment = 'assignments.comment';
     // Orders and manual payment confirmation (Phase 3).
     case OrdersManage = 'orders.manage';
     case PaymentsConfirm = 'payments.confirm';

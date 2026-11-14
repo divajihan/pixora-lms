@@ -2,12 +2,15 @@
 
 namespace App\Providers;
 
+use App\Models\Submission;
+use App\Models\SubmissionComment;
 use App\Services\Payment\FakeGateway;
 use App\Services\Payment\MidtransGateway;
 use App\Services\Payment\PaymentGateway;
 use App\Services\Video\VideoProvider;
 use App\Services\Video\YouTubeProvider;
 use Carbon\CarbonImmutable;
+use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
@@ -48,6 +51,13 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->configureDefaults();
+
+        // Stable aliases for attachments.attachable_type. Not enforced: spatie's
+        // model_has_roles rows already store class names.
+        Relation::morphMap([
+            'submission' => Submission::class,
+            'submission_comment' => SubmissionComment::class,
+        ]);
 
         // Indonesian URLs for resource routes: /kursus/buat, /kursus/{id}/ubah.
         Route::resourceVerbs(['create' => 'buat', 'edit' => 'ubah']);

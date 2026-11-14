@@ -122,4 +122,12 @@ class Lesson extends Model
     {
         return $this->hasOne(LiveSession::class);
     }
+
+    /**
+     * @return HasOne<Assignment, $this>
+     */
+    public function assignment(): HasOne
+    {
+        return $this->hasOne(Assignment::class);
+    }
 }
