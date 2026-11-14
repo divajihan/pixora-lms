@@ -19,8 +19,8 @@ Baca dokumen itu sebelum mengerjakan fitur apa pun.
   **Fase 3** (checkout, Midtrans Snap sandbox, webhook, enrollment, kursus gratis, pesanan — branch `feat/phase-3-checkout-enrollment`).
   **Fase 4** (batch per kursus drip, player lesson, drip per batch + override instruktur, progres — branch
   `feat/phase-4-batches-learning`).
-  Fase berikutnya: **Fase 5** (tugas, submission, feedback). Jangan membuat tugas/feedback, sertifikat, atau notifikasi
-  lesson baru sebelum fasenya.
+  **Fase 5** (tugas gambar, tenggat + perpanjangan, pengumpulan, feedback instruktur/staf — branch `feat/phase-5-assignments`).
+  Fase berikutnya: **Fase 6** (sertifikat). Jangan membuat sertifikat, notifikasi email, atau laporan sebelum fasenya.
 
 ## Stack
 
@@ -47,14 +47,24 @@ app/
                         # MoveEnrollmentToBatch, MarkLessonCompleted, UnmarkLessonCompleted, RecalculateEnrollmentProgress
   Actions/Batches/      # SaveBatch (simpan + hapus dengan aturan)
   Actions/Enrollments/ResolveEnrollmentBatch.php   # validasi batch pilihan saat checkout/ambil gratis
-  Actions/<Modul>/      # fase berikutnya: Assignment, Certificate
+  Actions/Assignments/  # ComputeAssignmentDeadline (+ AssignmentDeadline), AssignmentAvailability, SubmissionRules,
+                        # SubmitAssignment, UpdateSubmission, PostSubmissionComment, EditSubmissionComment,
+                        # SetDeadlineOverride, SaveAssignment, StoreImages, BuildAssignmentPanel,
+                        # BuildAssignmentReview, ListStudentAssignments, ListSubmissionsToReview
+  Actions/<Modul>/      # fase berikutnya: Certificate
   Enums/                # Role, Permission, CourseStatus, CourseInstructorRole, CoursePriceFilter, LessonType, LessonStatus
   Http/Controllers/
     Public/             # HomeController, CourseController (katalog & detail + kurikulum publik)
     Admin/              # CourseController, CourseStatusController, CourseInstructorController,
                         # CurriculumController, ModuleController, LessonController, UserController
     Instructor/         # CourseController ("Kursus saya", read-only)
-    Student/            # CourseController (kursus saya), OrderController (pesanan, invoice, cek status, simulasi)
+    Student/            # CourseController (kursus saya), OrderController (pesanan, invoice, cek status, simulasi),
+                        # AssignmentController ("Tugas saya", proyek akhir, kumpul/ubah)
+    Review/             # AssignmentReviewController (/kelas/{course}/tugas, perpanjangan tenggat),
+                        # SubmissionReviewController (/pengumpulan, detail, komentar)
+    Admin/AssignmentController   # tugas di kurikulum (courses.manage)
+    AttachmentController         # satu-satunya jalur baca gambar tugas (Policy)
+    Instructor/DashboardController   # kartu "Perlu direview"
     LearnController     # player /belajar/{course}[/lesson/{lesson}] + tandai/batalkan selesai
     ClassController     # /kelas/{course}/batch/...: siswa, jadwal batch & per siswa, pindah batch (admin)
     Admin/BatchController   # batch per kursus drip (courses.manage)
@@ -66,10 +76,15 @@ app/
   Http/Middleware/      # EnsureUserIsActive (logout user nonaktif), HandleInertiaRequests
   Http/Requests/Admin/  # CourseRequest, LessonRequest, ModuleRequest, ReorderCurriculumRequest, *UserRequest, ...
   Http/Resources/       # CourseCard/CourseDetail (publik), Admin/AdminCourseResource, Admin/CurriculumLessonResource (staf)
-  Models/               # User, Category, Course, CourseInstructor (pivot), InstructorProfile, Module, Lesson, LiveSession
+  Models/               # User, Category, Course, CourseInstructor (pivot), InstructorProfile, Module, Lesson, LiveSession,
+                        # Batch, LessonUnlockOverride, LessonProgress, Assignment, Submission, SubmissionComment,
+                        # Attachment (morph map: submission, submission_comment), AssignmentDeadlineOverride
   Notifications/        # PaymentSucceeded (email, queued)
   Policies/             # CoursePolicy (+ manageClass), ModulePolicy, LessonPolicy (+ viewContent/complete), OrderPolicy,
-                        # EnrollmentPolicy (berikutnya: Submission)
+                        # EnrollmentPolicy, AssignmentPolicy, SubmissionPolicy, SubmissionCommentPolicy, AttachmentPolicy
+  Services/Images/      # ImageNormalizer (GD: buang metadata, perkecil, thumbnail)
+  Rules/AllowedImage.php   # tipe gambar dari isi file (finfo): JPEG/PNG/WebP
+  Jobs/DeleteStoredFiles.php   # hapus file lampiran setelah commit
   Jobs/RecalculateCourseProgress.php   # hitung ulang progres saat lesson terbit/ditarik/dihapus (LessonObserver)
   Rules/VideoUrl.php    # validasi URL video lewat VideoProvider
   Services/Payment/     # PaymentGateway (interface), MidtransGateway (HTTP client), FakeGateway (lokal/test), MidtransPayload
@@ -84,7 +99,13 @@ resources/js/
   pages/public/         # home, courses/index, courses/show (layout: layouts/public-layout.tsx)
   pages/admin/          # dashboard, courses/{index,create,edit,curriculum}, users/index
   pages/instructor/     # dashboard, courses/{index,show}
-  pages/student/        # dashboard, courses/index, orders/{index,show,invoice}
+  pages/student/        # dashboard, courses/index, orders/{index,show,invoice}, assignments/index ("Tugas saya")
+  pages/learn/final-project.tsx   # proyek akhir (blok tugas)
+  pages/classes/        # + assignments, assignment-students (review per batch)
+  pages/submissions/    # index (staf/admin), show (detail + komentar)
+  components/assignments/   # assignment-panel (siswa), image-picker, image-gallery (lightbox), comment-thread,
+                            # deadline-dialog, batch-select
+  components/admin/curriculum/assignment-dialog.tsx
   pages/learn/          # course (ikhtisar + progres), lesson (player)
   pages/classes/        # batches, students, schedule (instruktur/admin)
   pages/admin/courses/batches.tsx      # kelola batch
@@ -132,7 +153,8 @@ Role dan permission didefinisikan di enum `App\Enums\Role` dan `App\Enums\Permis
 | `courses.manage`     |   ✓   |      |            |       | CRUD kursus, modul, lesson (Fase 2)               |
 | `courses.teach`      |   ✓   |      |     ✓      |       | Kelola kursus yang ditugaskan: unlock, siswa (F4) |
 | `courses.enroll`     |   ✓   |      |            |   ✓   | Beli/ambil kursus (Fase 3)                        |
-| `assignments.review` |   ✓   |      |     ✓      |       | Periksa tugas dan beri feedback (Fase 5)          |
+| `assignments.review` |   ✓   |      |     ✓      |       | Feedback & perpanjangan tenggat, kursus miliknya  |
+| `assignments.comment` |  ✓   |  ✓   |            |       | Lihat semua pengumpulan & ikut berkomentar (F5)   |
 | `orders.manage`      |   ✓   |  ✓   |            |       | Kelola order (Fase 3)                             |
 | `payments.confirm`   |   ✓   |  ✓   |            |       | Konfirmasi pembayaran manual (Fase 3)             |
 | `users.manage`       |   ✓   |      |            |       | Kelola pengguna dan role                          |
@@ -149,6 +171,23 @@ Role dan permission didefinisikan di enum `App\Enums\Role` dan `App\Enums\Permis
   pengguna (`/admin/pengguna`) dikunci `permission:users.manage`, plus Policy per aksi. **Staf tidak boleh mengubah konten
   kursus** (403). Instruktur hanya membaca kursus yang ditugaskan (`/instruktur/kursus`, kursus lain = 404).
 - Menu sidebar dibentuk dari `auth.roles`/`auth.permissions` (shared props) di `useMainNavItems` — hanya UI.
+
+## Tugas & feedback (Fase 5)
+
+- Tugas = gambar. Satu tugas per lesson, satu proyek akhir per kursus (`SaveAssignment`); tugas draft tidak tampil ke siswa.
+- **Tenggat hanya dari `ComputeAssignmentDeadline`** (versi massal `many()`, dua query): akhir hari (`ASSIGNMENT_DUE_TIME`,
+  23:59 WIB) dari acuan + `due_offset_days`. Acuan: buka lesson di batch / `ends_on` batch (proyek akhir) / `enrolled_at`
+  (non-drip). Override: per siswa > per batch > default; baru harus di masa depan (`SetDeadlineOverride`).
+- **Terlambat tidak pernah disimpan** — selalu `submitted_at > tenggat efektif` saat ini (`AssignmentDeadline::isLate`).
+- Aturan di `SubmissionRules`: ubah pengumpulan hanya sebelum tenggat, belum `reviewed`, belum ada komentar; komentar hanya
+  setelah tenggat dan untuk pengumpulan tepat waktu ("Terlambat - tidak mendapat feedback"). Komentar instruktur kursus
+  pertama → `reviewed`. Staf/admin boleh berkomentar (tidak mengubah status), tidak mengubah tugas/tenggat (staf).
+- **File**: validasi `AllowedImage` (finfo), normalisasi `ImageNormalizer` (wajib; format yang tidak didukung GD server
+  ditolak, jangan pernah simpan file mentah), disk privat `assignments` (`serve: false`), baca hanya via
+  `AttachmentController` + `AttachmentPolicy`. Jangan kirim `path`/`disk` ke props (pakai `AttachmentResource`).
+  Hapus file lewat `StoreImages::delete()` (job `DeleteStoredFiles` setelah commit).
+- Akses review: instruktur kursus, staf, admin (`AssignmentPolicy::canReviewCourse`), lainnya 404.
+- Test gambar memakai `tests/Support/TestImages.php`; test JPEG/WebP di-skip bila GD lokal tanpa dukungan (CI punya).
 
 ## Batch, drip & progres (Fase 4)
 

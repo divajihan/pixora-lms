@@ -6,10 +6,10 @@ mengumpulkan tugas, dan mendapat sertifikat otomatis.
 
 Rancangan lengkap (arsitektur, ERD, aturan bisnis, roadmap): [docs/arsitektur-erd.md](docs/arsitektur-erd.md).
 
-> Status: **Fase 4** selesai — batch (angkatan) per kursus drip, pilihan batch saat checkout, player lesson
-> (`/belajar`), drip per batch dengan override instruktur per batch/siswa (`/kelas`), dan progres belajar.
-> Fase 3 (checkout, Midtrans Snap sandbox, webhook idempoten, enrollment, pesanan) sudah selesai.
-> Berikutnya: Fase 5 (tugas, submission, feedback).
+> Status: **Fase 5** selesai — tugas gambar dengan tenggat (perpanjangan per batch/siswa), pengumpulan siswa,
+> feedback teks + gambar dari instruktur (staf/admin ikut berkomentar), "Tugas saya", dan antrean "Perlu direview".
+> Fase 1–4 (katalog, admin konten, pembayaran Midtrans, batch & player) sudah selesai.
+> Berikutnya: Fase 6 (sertifikat).
 
 ## Stack
 
@@ -90,7 +90,7 @@ Akun dev dari `php artisan migrate --seed` (hanya `local`/`testing`, emailnya su
 | staff      | `staff@pixora.test`      | `password`                                           |
 | instructor | `instructor@pixora.test` | `password`                                           |
 | student    | `student@pixora.test`    | `password`                                           |
-| student    | `siswa1..8@pixora.test`  | `password` (siswa demo di batch kursus drip)         |
+| student    | `siswa1..8@pixora.test`  | `password` (siswa demo di batch + contoh pengumpulan) |
 
 Email admin bisa diubah lewat `SEED_ADMIN_EMAIL`. Di production, jalankan hanya `php artisan db:seed --class=RoleSeeder --force`.
 
@@ -107,6 +107,14 @@ Catatan:
   `student@pixora.test` ikut batch berjalan "Dasar Desain Grafis untuk Pemula" (dengan 1 override batch + 1 override
   khusus siswa) dan kursus gratis non-drip. Instruktur `instructor@pixora.test` mengelola kelasnya di **Kursus saya →
   Kelola kelas**.
+- **Unggah gambar tugas**: hingga 5 gambar × 10 MB per pengumpulan. Setel PHP (dan Nginx) agar request muat:
+  `upload_max_filesize = 10M`, `post_max_size = 64M`, `max_file_uploads = 20`, dan Nginx `client_max_body_size 64m;`.
+  Batasnya diatur lewat `ASSIGNMENT_MAX_IMAGES` / `ASSIGNMENT_MAX_IMAGE_KB` (`.env`); naikkan setelan PHP bila batas dinaikkan.
+  Request yang melebihi `post_max_size` dijawab dengan pesan "Ukuran unggahan terlalu besar".
+- **GD**: ekstensi `gd` harus mendukung JPEG dan WebP (cek `php -r 'print_r(gd_info());'`). Format yang tidak didukung
+  GD server ditolak dengan pesan jelas (gambar tidak pernah disimpan tanpa normalisasi/penghapusan EXIF). Herd Lite di
+  Windows hanya mendukung PNG — unggah PNG saat uji lokal.
+- File tugas disimpan di `storage/app/private/assignments` (disk `assignments`, tidak bisa diakses langsung).
 - Jam buka lesson drip: `LESSON_UNLOCK_TIME` (default `00:00`, zona `Asia/Jakarta`); offset 0 = tanggal mulai batch.
 - Scheduler (order & enrollment kedaluwarsa): di server tambahkan cron `* * * * * php artisan schedule:run`;
   di lokal jalankan `php artisan schedule:work` bila perlu.
