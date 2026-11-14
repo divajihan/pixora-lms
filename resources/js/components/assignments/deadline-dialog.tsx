@@ -16,7 +16,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
 import { formatDateTime } from '@/lib/format';
-import { reset as resetDeadline, set as setDeadline } from '@/routes/classes/assignments/deadline';
+import {
+    reset as resetDeadline,
+    set as setDeadline,
+} from '@/routes/classes/assignments/deadline';
 
 /** ISO → "YYYY-MM-DDTHH:mm" in WIB for <input type="datetime-local">. */
 function toLocalInput(iso: string): string {

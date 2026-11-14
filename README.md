@@ -84,12 +84,12 @@ Buka http://localhost:8000.
 
 Akun dev dari `php artisan migrate --seed` (hanya `local`/`testing`, emailnya sudah terverifikasi):
 
-| Role       | Email                    | Kata sandi                                           |
-| ---------- | ------------------------ | ---------------------------------------------------- |
-| admin      | `admin@pixora.test`      | `SEED_ADMIN_PASSWORD` di `.env` (default `password`) |
-| staff      | `staff@pixora.test`      | `password`                                           |
-| instructor | `instructor@pixora.test` | `password`                                           |
-| student    | `student@pixora.test`    | `password`                                           |
+| Role       | Email                    | Kata sandi                                            |
+| ---------- | ------------------------ | ----------------------------------------------------- |
+| admin      | `admin@pixora.test`      | `SEED_ADMIN_PASSWORD` di `.env` (default `password`)  |
+| staff      | `staff@pixora.test`      | `password`                                            |
+| instructor | `instructor@pixora.test` | `password`                                            |
+| student    | `student@pixora.test`    | `password`                                            |
 | student    | `siswa1..8@pixora.test`  | `password` (siswa demo di batch + contoh pengumpulan) |
 
 Email admin bisa diubah lewat `SEED_ADMIN_EMAIL`. Di production, jalankan hanya `php artisan db:seed --class=RoleSeeder --force`.

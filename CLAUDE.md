@@ -148,21 +148,21 @@ docs/                   # rancangan (jangan diformat ulang); docs/screenshots/ u
 Role dan permission didefinisikan di enum `App\Enums\Role` dan `App\Enums\Permission`, lalu disinkronkan oleh
 `RoleSeeder` (idempoten, aman di production). Tambah permission baru di enum, lalu jalankan ulang seeder.
 
-| Permission           | Admin | Staf | Instruktur | Siswa | Keterangan                                        |
-| -------------------- | :---: | :--: | :--------: | :---: | ------------------------------------------------- |
-| `courses.manage`     |   ✓   |      |            |       | CRUD kursus, modul, lesson (Fase 2)               |
-| `courses.teach`      |   ✓   |      |     ✓      |       | Kelola kursus yang ditugaskan: unlock, siswa (F4) |
-| `courses.enroll`     |   ✓   |      |            |   ✓   | Beli/ambil kursus (Fase 3)                        |
-| `assignments.review` |   ✓   |      |     ✓      |       | Feedback & perpanjangan tenggat, kursus miliknya  |
-| `assignments.comment` |  ✓   |  ✓   |            |       | Lihat semua pengumpulan & ikut berkomentar (F5)   |
-| `orders.manage`      |   ✓   |  ✓   |            |       | Kelola order (Fase 3)                             |
-| `payments.confirm`   |   ✓   |  ✓   |            |       | Konfirmasi pembayaran manual (Fase 3)             |
-| `users.manage`       |   ✓   |      |            |       | Kelola pengguna dan role                          |
-| `users.view`         |   ✓   |  ✓   |            |       | Lihat data pengguna                               |
-| `students.assist`    |   ✓   |  ✓   |            |       | Bantu siswa (lihat enrollment/order mereka)       |
-| `content.moderate`   |   ✓   |  ✓   |            |       | Moderasi konten                                   |
-| `reports.view`       |   ✓   |      |            |       | Laporan                                           |
-| `settings.manage`    |   ✓   |      |            |       | Pengaturan (branding, sertifikat)                 |
+| Permission            | Admin | Staf | Instruktur | Siswa | Keterangan                                        |
+| --------------------- | :---: | :--: | :--------: | :---: | ------------------------------------------------- |
+| `courses.manage`      |   ✓   |      |            |       | CRUD kursus, modul, lesson (Fase 2)               |
+| `courses.teach`       |   ✓   |      |     ✓      |       | Kelola kursus yang ditugaskan: unlock, siswa (F4) |
+| `courses.enroll`      |   ✓   |      |            |   ✓   | Beli/ambil kursus (Fase 3)                        |
+| `assignments.review`  |   ✓   |      |     ✓      |       | Feedback & perpanjangan tenggat, kursus miliknya  |
+| `assignments.comment` |   ✓   |  ✓   |            |       | Lihat semua pengumpulan & ikut berkomentar (F5)   |
+| `orders.manage`       |   ✓   |  ✓   |            |       | Kelola order (Fase 3)                             |
+| `payments.confirm`    |   ✓   |  ✓   |            |       | Konfirmasi pembayaran manual (Fase 3)             |
+| `users.manage`        |   ✓   |      |            |       | Kelola pengguna dan role                          |
+| `users.view`          |   ✓   |  ✓   |            |       | Lihat data pengguna                               |
+| `students.assist`     |   ✓   |  ✓   |            |       | Bantu siswa (lihat enrollment/order mereka)       |
+| `content.moderate`    |   ✓   |  ✓   |            |       | Moderasi konten                                   |
+| `reports.view`        |   ✓   |      |            |       | Laporan                                           |
+| `settings.manage`     |   ✓   |      |            |       | Pengaturan (branding, sertifikat)                 |
 
 - Aturan "hanya kursus miliknya" (instruktur) dicek di Policy memakai `course_instructors`, di atas permission.
 - Area per role dilindungi middleware `role:` di `routes/web.php`: `/admin` (admin, staff), `/instruktur`, `/siswa`.

@@ -55,13 +55,13 @@ test('assigned instructors see batches, students with progress and the schedule'
 test('the student list is searchable and paginated', function () {
     $s = classSetup();
     Enrollment::factory()->count(22)->create(['course_id' => $s['course']->id, 'batch_id' => $s['batch']->id]);
-    $s['student']->update(['name' => 'Zulaikha Unik']);
+    $s['student']->update(['name' => 'Qxzvy Unik']);
 
     $this->actingAs($s['instructor'])->get(route('classes.students', [$s['course'], $s['batch']]))
         ->assertInertia(fn (Assert $page) => $page->where('students.total', 23)->has('students.data', 20));
 
-    $this->actingAs($s['instructor'])->get(route('classes.students', [$s['course'], $s['batch'], 'q' => 'zulaikha']))
-        ->assertInertia(fn (Assert $page) => $page->where('students.total', 1)->where('filters.q', 'zulaikha'));
+    $this->actingAs($s['instructor'])->get(route('classes.students', [$s['course'], $s['batch'], 'q' => 'qxzvy']))
+        ->assertInertia(fn (Assert $page) => $page->where('students.total', 1)->where('filters.q', 'qxzvy'));
 
     // LIKE wildcards are escaped.
     $this->actingAs($s['instructor'])->get(route('classes.students', [$s['course'], $s['batch'], 'q' => '%']))
