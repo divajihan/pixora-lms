@@ -217,7 +217,14 @@ export default function ClassSchedule(props: Props) {
                     >
                         <h2 className="font-semibold">{module.title}</h2>
                         <div className="overflow-x-auto rounded-lg border">
-                            <table className="w-full min-w-[820px] text-sm">
+                            <table className="w-full min-w-[820px] table-fixed text-sm">
+                                {/* Fixed widths keep the columns aligned across module tables. */}
+                                <colgroup>
+                                    <col className="w-[28%]" />
+                                    <col className="w-[20%]" />
+                                    <col className="w-[22%]" />
+                                    <col className="w-[30%]" />
+                                </colgroup>
                                 <thead className="bg-muted/50 text-left text-muted-foreground">
                                     <tr>
                                         <th

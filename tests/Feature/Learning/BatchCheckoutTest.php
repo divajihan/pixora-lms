@@ -186,6 +186,9 @@ test('orders and invoices show the batch', function () {
     $this->get(route('student.orders.show', $order))
         ->assertInertia(fn (Assert $page) => $page->where('order.items.0.batch.name', 'Batch 44'));
 
+    $this->get(route('student.orders.invoice', $order))
+        ->assertInertia(fn (Assert $page) => $page->where('order.items.0.batch.name', 'Batch 44'));
+
     $this->actingAs(actingAsRole(Role::Admin))->get(route('admin.orders.show', $order))
         ->assertInertia(fn (Assert $page) => $page->where('order.items.0.batch.name', 'Batch 44'));
 });

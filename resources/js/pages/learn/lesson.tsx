@@ -223,7 +223,11 @@ export default function LearnLesson({
                     >
                         {previous ? (
                             previous.is_unlocked ? (
-                                <Button asChild variant="ghost">
+                                <Button
+                                    asChild
+                                    variant="ghost"
+                                    className="max-w-[48%] min-w-0"
+                                >
                                     <Link
                                         href={lessonRoute([
                                             course.slug,
@@ -231,7 +235,7 @@ export default function LearnLesson({
                                         ])}
                                     >
                                         <ChevronLeft />
-                                        <span className="max-w-40 truncate sm:max-w-64">
+                                        <span className="truncate">
                                             {previous.title}
                                         </span>
                                     </Link>
@@ -244,14 +248,18 @@ export default function LearnLesson({
                         )}
                         {next &&
                             (next.is_unlocked ? (
-                                <Button asChild variant="ghost">
+                                <Button
+                                    asChild
+                                    variant="ghost"
+                                    className="max-w-[48%] min-w-0"
+                                >
                                     <Link
                                         href={lessonRoute([
                                             course.slug,
                                             next.slug,
                                         ])}
                                     >
-                                        <span className="max-w-40 truncate sm:max-w-64">
+                                        <span className="truncate">
                                             {next.title}
                                         </span>
                                         <ChevronRight />

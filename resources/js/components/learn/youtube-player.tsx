@@ -59,8 +59,8 @@ export function YouTubePlayer({
     const ended = useRef(onEnded);
     ended.current = onEnded;
 
-    const separator = embedUrl.includes('?') ? '&' : '?';
-    const src = `${embedUrl}${separator}enablejsapi=1&origin=${encodeURIComponent(typeof window !== 'undefined' ? window.location.origin : '')}`;
+    // No `origin` parameter: it would differ between SSR and the browser (hydration mismatch).
+    const src = `${embedUrl}${embedUrl.includes('?') ? '&' : '?'}enablejsapi=1`;
 
     useEffect(() => {
         let player: YTPlayer | null = null;
