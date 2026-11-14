@@ -29,7 +29,7 @@ class OrderController extends Controller
         $user = $request->user();
 
         $orders = $user->orders()
-            ->with('items')
+            ->with(['items', 'items.batch'])
             ->latest('id')
             ->paginate(15)
             ->through(fn (Order $order) => OrderResource::make($order)->resolve());
@@ -46,7 +46,7 @@ class OrderController extends Controller
             rescue(fn () => $startPayment->handle($order), report: false);
         }
 
-        $order->load(['items.course:id,slug', 'enrollments']);
+        $order->load(['items.course:id,slug', 'items.batch', 'enrollments']);
 
         return Inertia::render('student/orders/show', [
             'order' => OrderResource::make($order)->resolve(),
@@ -78,7 +78,7 @@ class OrderController extends Controller
     {
         Gate::authorize('view', $order);
 
-        $order->load(['items', 'user', 'payments']);
+        $order->load(['items', 'items.batch', 'user', 'payments']);
 
         return Inertia::render('student/orders/invoice', [
             'order' => OrderResource::make($order)->resolve(),

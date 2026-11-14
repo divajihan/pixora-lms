@@ -47,7 +47,7 @@ class PaymentSucceeded extends Notification implements ShouldQueue
         $first = $order->items->first()?->course;
 
         if ($first !== null) {
-            $message->action('Mulai belajar', route('student.courses.learn', $first));
+            $message->action('Mulai belajar', route('learn.course', $first));
         }
 
         return $message

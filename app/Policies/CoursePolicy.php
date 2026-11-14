@@ -67,6 +67,21 @@ class CoursePolicy
     }
 
     /**
+     * Run a class: batches, students and lesson unlock schedules. Content
+     * managers (admins) or instructors assigned to this course. Not staff.
+     */
+    public function manageClass(User $user, Course $course): Response
+    {
+        if ($this->manage($user)) {
+            return Response::allow();
+        }
+
+        return $user->can(Permission::CoursesTeach->value) && $course->hasInstructor($user)
+            ? Response::allow()
+            : Response::denyAsNotFound();
+    }
+
+    /**
      * Instructor area: list of courses assigned to the user.
      */
     public function viewAssigned(User $user): bool

@@ -12,7 +12,7 @@ test('a free course enrolls immediately without an order', function () {
     $course = Course::factory()->published()->free()->create(['access_duration_days' => 90]);
 
     $this->actingAs($this->student)->post(route('checkout.free', $course))
-        ->assertRedirect(route('student.courses.learn', $course));
+        ->assertRedirect(route('learn.course', $course));
 
     $enrollment = Enrollment::sole();
 

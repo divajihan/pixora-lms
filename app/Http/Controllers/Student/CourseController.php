@@ -3,16 +3,14 @@
 namespace App\Http\Controllers\Student;
 
 use App\Http\Controllers\Controller;
-use App\Models\Course;
 use App\Models\Enrollment;
 use App\Models\User;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response;
 
 /**
- * "Kursus saya" and the learning area placeholder (player arrives in Phase 4).
+ * "Kursus saya" for students. The player lives in LearnController (/belajar).
  */
 class CourseController extends Controller
 {
@@ -43,26 +41,6 @@ class CourseController extends Controller
 
         return Inertia::render('student/courses/index', [
             'enrollments' => $enrollments,
-        ]);
-    }
-
-    public function learn(Request $request, Course $course): Response
-    {
-        /** @var User $user */
-        $user = $request->user();
-
-        $enrollment = $user->enrollments()->where('course_id', $course->id)->first();
-
-        abort_if($enrollment === null, 404);
-
-        Gate::authorize('learn', $enrollment);
-
-        return Inertia::render('student/courses/learn', [
-            'course' => ['title' => $course->title, 'slug' => $course->slug],
-            'enrollment' => [
-                'enrolled_at' => $enrollment->enrolled_at->toIso8601String(),
-                'expires_at' => $enrollment->expires_at?->toIso8601String(),
-            ],
         ]);
     }
 }

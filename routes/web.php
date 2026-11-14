@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Admin\BatchController;
 use App\Http\Controllers\Admin\CourseController as AdminCourseController;
 use App\Http\Controllers\Admin\CourseInstructorController;
 use App\Http\Controllers\Admin\CourseStatusController;
@@ -9,8 +10,10 @@ use App\Http\Controllers\Admin\ModuleController;
 use App\Http\Controllers\Admin\OrderController as AdminOrderController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\CheckoutController;
+use App\Http\Controllers\ClassController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\Instructor\CourseController as InstructorCourseController;
+use App\Http\Controllers\LearnController;
 use App\Http\Controllers\Public\CourseController;
 use App\Http\Controllers\Public\HomeController;
 use App\Http\Controllers\Student\CourseController as StudentCourseController;
@@ -42,6 +45,30 @@ Route::middleware(['auth', 'verified', 'role:student'])->group(function () {
 });
 
 Route::middleware(['auth', 'verified'])->group(function () {
+    // Learning player: owner of an accessible enrollment (EnrollmentPolicy) — lesson
+    // content only when ComputeLessonAccess opens it (LessonPolicy::viewContent).
+    Route::prefix('belajar/{course:slug}')->name('learn.')->group(function () {
+        Route::get('/', [LearnController::class, 'course'])->name('course');
+        Route::get('lesson/{lesson:slug}', [LearnController::class, 'lesson'])->name('lesson')->scopeBindings();
+        Route::post('lesson/{lesson:slug}/selesai', [LearnController::class, 'complete'])
+            ->middleware('throttle:60,1')->name('complete')->scopeBindings();
+        Route::delete('lesson/{lesson:slug}/selesai', [LearnController::class, 'uncomplete'])
+            ->middleware('throttle:60,1')->name('uncomplete')->scopeBindings();
+    });
+
+    // Running a class (assigned instructors + admins; CoursePolicy::manageClass).
+    Route::prefix('kelas/{course}')->name('classes.')->group(function () {
+        Route::get('batch', [ClassController::class, 'batches'])->name('batches');
+        Route::get('batch/{batch}', [ClassController::class, 'students'])->name('students');
+        Route::get('batch/{batch}/jadwal', [ClassController::class, 'schedule'])->name('schedule');
+        Route::post('batch/{batch}/jadwal/{lesson}', [ClassController::class, 'setOverride'])->name('schedule.set');
+        Route::delete('batch/{batch}/jadwal/{lesson}', [ClassController::class, 'resetOverride'])->name('schedule.reset');
+        Route::get('batch/{batch}/siswa/{enrollment}/jadwal', [ClassController::class, 'studentSchedule'])->name('student-schedule');
+        Route::post('batch/{batch}/siswa/{enrollment}/jadwal/{lesson}', [ClassController::class, 'setOverride'])->name('student-schedule.set');
+        Route::delete('batch/{batch}/siswa/{enrollment}/jadwal/{lesson}', [ClassController::class, 'resetOverride'])->name('student-schedule.reset');
+        Route::post('batch/{batch}/siswa/{enrollment}/pindah', [ClassController::class, 'moveEnrollment'])->name('move');
+    });
+
     // Fortify "home": redirects to the role-specific dashboard below.
     Route::get('dashboard', DashboardController::class)->name('dashboard');
 
@@ -61,6 +88,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
             Route::delete('kursus/{course}/instruktur/{user}', [CourseInstructorController::class, 'destroy'])->name('courses.instructors.destroy');
 
             Route::get('kursus/{course}/kurikulum', [CurriculumController::class, 'show'])->name('courses.curriculum');
+
+            Route::get('kursus/{course}/batch', [BatchController::class, 'index'])->name('batches.index');
+            Route::post('kursus/{course}/batch', [BatchController::class, 'store'])->name('batches.store');
+            Route::put('batch/{batch}', [BatchController::class, 'update'])->name('batches.update');
+            Route::patch('batch/{batch}/publikasi', [BatchController::class, 'togglePublish'])->name('batches.publish');
+            Route::delete('batch/{batch}', [BatchController::class, 'destroy'])->name('batches.destroy');
             Route::put('kursus/{course}/kurikulum/urutan', [CurriculumController::class, 'reorder'])->name('courses.curriculum.reorder');
 
             Route::post('kursus/{course}/modul', [ModuleController::class, 'store'])->name('modules.store');
@@ -100,7 +133,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::inertia('/', 'student/dashboard')->name('dashboard');
 
         Route::get('kursus', [StudentCourseController::class, 'index'])->name('courses.index');
-        Route::get('kursus/{course:slug}/belajar', [StudentCourseController::class, 'learn'])->name('courses.learn');
+        // Phase 3 URL (used in sent emails) → the learning player.
+        Route::redirect('kursus/{course}/belajar', '/belajar/{course}')->name('courses.learn');
 
         Route::get('pesanan', [StudentOrderController::class, 'index'])->name('orders.index');
         Route::get('pesanan/{order}', [StudentOrderController::class, 'show'])->name('orders.show');

@@ -4,6 +4,7 @@ namespace App\Actions\Catalog;
 
 use App\Enums\OrderStatus;
 use App\Enums\Role;
+use App\Models\Batch;
 use App\Models\Course;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
@@ -20,7 +21,8 @@ class PurchaseState
      *     is_free: bool,
      *     checkout_url: string,
      *     learn_url: string|null,
-     *     order_url: string|null
+     *     order_url: string|null,
+     *     batches: array<int, array<string, mixed>>
      * }
      */
     public function handle(?User $user, Course $course): array
@@ -31,6 +33,7 @@ class PurchaseState
             'checkout_url' => route('checkout.show', $course),
             'learn_url' => null,
             'order_url' => null,
+            'batches' => $this->batches($course),
         ];
 
         // Guests see buy/free; the checkout route sends them to login and back.
@@ -39,7 +42,7 @@ class PurchaseState
         }
 
         if ($user->enrollments()->where('course_id', $course->id)->accessible()->exists()) {
-            return ['state' => 'enrolled', ...$base, 'learn_url' => route('student.courses.learn', $course)];
+            return ['state' => 'enrolled', ...$base, 'learn_url' => route('learn.course', $course)];
         }
 
         if (! $user->hasRole(Role::Student->value)) {
@@ -58,5 +61,40 @@ class PurchaseState
         }
 
         return ['state' => $course->isFree() ? 'free' : 'buy', ...$base];
+    }
+
+    /**
+     * Published batches that have not finished yet, with seats and whether
+     * registration is open (drip courses only).
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public function batches(Course $course): array
+    {
+        if (! $course->drip_enabled) {
+            return [];
+        }
+
+        return Batch::query()
+            ->where('course_id', $course->id)
+            ->published()
+            ->whereDate('ends_on', '>=', now()->toDateString())
+            ->withSeatsTaken()
+            ->orderBy('starts_on')
+            ->get()
+            ->map(fn (Batch $batch) => [
+                'id' => $batch->id,
+                'name' => $batch->name,
+                'starts_on' => $batch->starts_on->toDateString(),
+                'ends_on' => $batch->ends_on->toDateString(),
+                'registration_closes_on' => $batch->registration_closes_on?->toDateString(),
+                'status' => $batch->status()->value,
+                'status_label' => $batch->status()->label(),
+                'seats_left' => $batch->seatsLeft(),
+                'is_open' => $batch->isOpenForRegistration(),
+                'closed_reason' => $batch->registrationBlocker(),
+            ])
+            ->values()
+            ->all();
     }
 }

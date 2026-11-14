@@ -134,11 +134,11 @@ class ApplyPaymentNotification
      */
     public static function grantFor(Order $order, GrantEnrollment $grant): void
     {
-        $order->loadMissing(['user', 'items.course']);
+        $order->loadMissing(['user', 'items.course', 'items.batch']);
 
         $order->items->each(function (OrderItem $item) use ($order, $grant): void {
             if ($item->course instanceof Course) {
-                $grant->handle($order->user, $item->course, $order);
+                $grant->handle($order->user, $item->course, $order, $item->batch);
             }
         });
     }

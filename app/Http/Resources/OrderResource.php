@@ -42,6 +42,12 @@ class OrderResource extends JsonResource
                 'title' => $item->title_snapshot,
                 'price' => $item->price,
                 'course_slug' => $item->course?->slug,
+                'batch' => $item->batch_id && $item->relationLoaded('batch') && $item->batch ? [
+                    'id' => $item->batch->id,
+                    'name' => $item->batch->name,
+                    'starts_on' => $item->batch->starts_on->toDateString(),
+                    'ends_on' => $item->batch->ends_on->toDateString(),
+                ] : null,
             ])->values()->all()),
             'payments' => $this->whenLoaded('payments', fn () => $this->payments->map(fn (Payment $payment) => [
                 'id' => $payment->id,

@@ -27,7 +27,7 @@ test('the course page call-to-action matches the viewer', function () {
     Enrollment::factory()->create(['user_id' => $student->id, 'course_id' => $paid->id]);
     $this->actingAs($student)->get(route('courses.show', $paid))->assertInertia(fn (Assert $page) => $page
         ->where('purchase.state', 'enrolled')
-        ->where('purchase.learn_url', route('student.courses.learn', $paid)));
+        ->where('purchase.learn_url', route('learn.course', $paid)));
 
     // Staff/instructors cannot buy
     $this->actingAs(User::factory()->create()->assignRole('instructor'))
@@ -39,5 +39,5 @@ test('enrolled students are sent from checkout to the learning page', function (
     [$student, $course] = studentAndPaidCourse();
     Enrollment::factory()->create(['user_id' => $student->id, 'course_id' => $course->id]);
 
-    $this->actingAs($student)->get(route('checkout.show', $course))->assertRedirect(route('student.courses.learn', $course));
+    $this->actingAs($student)->get(route('checkout.show', $course))->assertRedirect(route('learn.course', $course));
 });
