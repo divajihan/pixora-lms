@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Public;
 
 use App\Actions\Catalog\CatalogFilters;
 use App\Actions\Catalog\PublicCurriculum;
+use App\Actions\Catalog\PurchaseState;
 use App\Actions\Catalog\SearchCourses;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\CourseCardResource;
@@ -42,7 +43,7 @@ class CourseController extends Controller
         ]);
     }
 
-    public function show(Course $course, PublicCurriculum $publicCurriculum): Response
+    public function show(Request $request, Course $course, PublicCurriculum $publicCurriculum, PurchaseState $purchaseState): Response
     {
         $course->load([
             'category:id,name,slug',
@@ -58,6 +59,8 @@ class CourseController extends Controller
             'course' => CourseDetailResource::make($course)->resolve(),
             // Published lessons only; video data only for preview lessons (see PublicCurriculum).
             'curriculum' => $publicCurriculum->handle($course),
+            // Call-to-action for the viewer: buy / free / continue learning / pending order.
+            'purchase' => $purchaseState->handle($request->user(), $course),
         ]);
     }
 }

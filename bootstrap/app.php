@@ -21,6 +21,9 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->encryptCookies(except: ['appearance', 'sidebar_state']);
 
+        // Gateways cannot send CSRF tokens; webhooks are authenticated by signature instead.
+        $middleware->validateCsrfTokens(except: ['webhooks/*']);
+
         $middleware->web(append: [
             EnsureUserIsActive::class,
             HandleAppearance::class,
