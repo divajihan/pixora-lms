@@ -27,7 +27,7 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property int|null $comments_count
- * @property string|null $comments_max_created_at
+ * @property string|null $comments_max_updated_at
  */
 #[Fillable(['assignment_id', 'enrollment_id', 'body', 'status', 'submitted_at', 'reviewed_at', 'reviewed_by', 'student_seen_feedback_at'])]
 class Submission extends Model
@@ -49,12 +49,12 @@ class Submission extends Model
     }
 
     /**
-     * True when there is a comment the student has not seen yet.
-     * Needs withMax('comments', 'created_at') (or loads it).
+     * True when a comment was posted or edited after the student last opened
+     * the assignment. Use withMax('comments', 'updated_at') in lists.
      */
     public function hasUnseenFeedback(): bool
     {
-        $latest = $this->comments_max_created_at ?? $this->comments()->max('created_at');
+        $latest = $this->comments_max_updated_at ?? $this->comments()->max('updated_at');
 
         if ($latest === null) {
             return false;

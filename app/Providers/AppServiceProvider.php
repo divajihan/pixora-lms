@@ -10,9 +10,12 @@ use App\Services\Payment\PaymentGateway;
 use App\Services\Video\VideoProvider;
 use App\Services\Video\YouTubeProvider;
 use Carbon\CarbonImmutable;
+use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Database\Eloquent\Relations\Relation;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
@@ -58,6 +61,10 @@ class AppServiceProvider extends ServiceProvider
             'submission' => Submission::class,
             'submission_comment' => SubmissionComment::class,
         ]);
+
+        // Image uploads (submissions) and feedback comments, per user.
+        RateLimiter::for('uploads', fn (Request $request) => Limit::perMinute(20)->by((string) ($request->user()->id ?? $request->ip())));
+        RateLimiter::for('comments', fn (Request $request) => Limit::perMinute(30)->by((string) ($request->user()->id ?? $request->ip())));
 
         // Indonesian URLs for resource routes: /kursus/buat, /kursus/{id}/ubah.
         Route::resourceVerbs(['create' => 'buat', 'edit' => 'ubah']);

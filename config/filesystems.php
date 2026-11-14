@@ -30,6 +30,18 @@ return [
 
     'disks' => [
 
+        // Assignment images (submissions + feedback). Private and NOT served by
+        // the framework: only App\Http\Controllers\AttachmentController
+        // (policy-checked) reads these files.
+        'assignments' => [
+            'driver' => 'local',
+            'root' => storage_path('app/private/assignments'),
+            'serve' => false,
+            'visibility' => 'private',
+            'throw' => false,
+            'report' => false,
+        ],
+
         'local' => [
             'driver' => 'local',
             'root' => storage_path('app/private'),

@@ -10,6 +10,7 @@ use App\Http\Controllers\Admin\LessonController;
 use App\Http\Controllers\Admin\ModuleController;
 use App\Http\Controllers\Admin\OrderController as AdminOrderController;
 use App\Http\Controllers\Admin\UserController;
+use App\Http\Controllers\AttachmentController;
 use App\Http\Controllers\CheckoutController;
 use App\Http\Controllers\ClassController;
 use App\Http\Controllers\DashboardController;
@@ -17,6 +18,7 @@ use App\Http\Controllers\Instructor\CourseController as InstructorCourseControll
 use App\Http\Controllers\LearnController;
 use App\Http\Controllers\Public\CourseController;
 use App\Http\Controllers\Public\HomeController;
+use App\Http\Controllers\Student\AssignmentController as StudentAssignmentController;
 use App\Http\Controllers\Student\CourseController as StudentCourseController;
 use App\Http\Controllers\Student\OrderController as StudentOrderController;
 use App\Http\Controllers\WebhookController;
@@ -55,7 +57,19 @@ Route::middleware(['auth', 'verified'])->group(function () {
             ->middleware('throttle:60,1')->name('complete')->scopeBindings();
         Route::delete('lesson/{lesson:slug}/selesai', [LearnController::class, 'uncomplete'])
             ->middleware('throttle:60,1')->name('uncomplete')->scopeBindings();
+
+        // Assignments (student): final project page, submit and update images.
+        Route::get('proyek-akhir', [StudentAssignmentController::class, 'finalProject'])->name('final-project');
+        Route::post('tugas/{assignment}', [StudentAssignmentController::class, 'store'])
+            ->middleware('throttle:uploads')->name('assignments.submit');
+        Route::post('tugas/{assignment}/ubah', [StudentAssignmentController::class, 'update'])
+            ->middleware('throttle:uploads')->name('assignments.update');
     });
+
+    // Submission and comment images (private disk; AttachmentPolicy).
+    Route::get('lampiran/{attachment}', [AttachmentController::class, 'show'])->name('attachments.show');
+    Route::get('lampiran/{attachment}/thumbnail', [AttachmentController::class, 'thumbnail'])->name('attachments.thumbnail');
+    Route::get('lampiran/{attachment}/unduh', [AttachmentController::class, 'download'])->name('attachments.download');
 
     // Running a class (assigned instructors + admins; CoursePolicy::manageClass).
     Route::prefix('kelas/{course}')->name('classes.')->group(function () {
@@ -138,6 +152,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::inertia('/', 'student/dashboard')->name('dashboard');
 
         Route::get('kursus', [StudentCourseController::class, 'index'])->name('courses.index');
+        Route::get('tugas', [StudentAssignmentController::class, 'index'])->name('assignments.index');
         // Phase 3 URL (used in sent emails) → the learning player.
         Route::redirect('kursus/{course}/belajar', '/belajar/{course}')->name('courses.learn');
 

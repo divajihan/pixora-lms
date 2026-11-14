@@ -54,7 +54,7 @@ return [
 
     'assignments' => [
         'due_time' => env('ASSIGNMENT_DUE_TIME', '23:59'),
-        'disk' => env('ASSIGNMENT_DISK', 'local'),
+        'disk' => env('ASSIGNMENT_DISK', 'assignments'),
         'max_images' => (int) env('ASSIGNMENT_MAX_IMAGES', 5),
         'max_image_kb' => (int) env('ASSIGNMENT_MAX_IMAGE_KB', 10240),
         'comment_max_images' => (int) env('ASSIGNMENT_COMMENT_MAX_IMAGES', 5),
