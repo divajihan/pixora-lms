@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
@@ -93,6 +94,22 @@ class Lesson extends Model
     public function module(): BelongsTo
     {
         return $this->belongsTo(Module::class);
+    }
+
+    /**
+     * @return HasMany<LessonUnlockOverride, $this>
+     */
+    public function unlockOverrides(): HasMany
+    {
+        return $this->hasMany(LessonUnlockOverride::class);
+    }
+
+    /**
+     * Human day label for the drip schedule: offset 0 = "Hari ke-1".
+     */
+    public function dayNumber(): int
+    {
+        return $this->drip_day_offset + 1;
     }
 
     /**
