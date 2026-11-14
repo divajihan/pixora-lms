@@ -2,6 +2,7 @@
 
 namespace App\Actions\Orders;
 
+use App\Actions\Enrollments\ResolveEnrollmentBatch;
 use App\Enums\OrderStatus;
 use App\Models\Course;
 use App\Models\Order;
@@ -16,14 +17,18 @@ use Illuminate\Validation\ValidationException;
  *
  * - Only published, paid courses.
  * - Rejected when the user already has access (accessible enrollment).
- * - Reuses the user's pending, not-yet-expired order for the same course.
+ * - Drip courses require an open batch (stored on the order item).
+ * - Reuses the user's pending, not-yet-expired order for the same course and batch.
  * - Prices ALWAYS come from the database, never from the request.
  */
 class CreateOrder
 {
-    public function __construct(private readonly StartPayment $startPayment) {}
+    public function __construct(
+        private readonly StartPayment $startPayment,
+        private readonly ResolveEnrollmentBatch $resolveBatch,
+    ) {}
 
-    public function handle(User $user, Course $course): Order
+    public function handle(User $user, Course $course, ?int $batchId = null): Order
     {
         if (! $course->isPublished()) {
             throw ValidationException::withMessages(['course' => 'Kursus ini belum tersedia untuk dibeli.']);
@@ -37,14 +42,18 @@ class CreateOrder
             throw ValidationException::withMessages(['course' => 'Anda sudah terdaftar di kursus ini.']);
         }
 
-        $order = DB::transaction(function () use ($user, $course): Order {
+        $order = DB::transaction(function () use ($user, $course, $batchId): Order {
             // Serialise checkouts of the same user so double clicks reuse one order.
             User::whereKey($user->id)->lockForUpdate()->first();
+
+            // Drip courses: the batch is re-validated here (published, open, not full).
+            $batch = $this->resolveBatch->handle($course, $batchId);
 
             $existing = $user->orders()
                 ->where('status', OrderStatus::Pending)
                 ->where('expires_at', '>', now())
-                ->whereHas('items', fn (Builder $query) => $query->where('course_id', $course->id))
+                // Reuse only an order for the same course AND the same batch.
+                ->whereHas('items', fn (Builder $query) => $query->where('course_id', $course->id)->where('batch_id', $batch?->id))
                 ->latest('id')
                 ->first();
 
@@ -63,6 +72,7 @@ class CreateOrder
 
             $order->items()->create([
                 'course_id' => $course->id,
+                'batch_id' => $batch?->id,
                 'title_snapshot' => $course->title,
                 'price' => $course->price,
             ]);

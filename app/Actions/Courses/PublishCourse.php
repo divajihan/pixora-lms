@@ -10,7 +10,8 @@ use Illuminate\Validation\ValidationException;
 /**
  * Publishes a course after checking the publish rules:
  * - at least one published lesson (in a module that is not deleted);
- * - at least one lead instructor.
+ * - at least one lead instructor;
+ * - drip courses: at least one published batch.
  */
 class PublishCourse
 {
@@ -38,6 +39,10 @@ class PublishCourse
 
         if (! $hasLead) {
             $reasons[] = 'Kursus belum memiliki instruktur utama. Tugaskan minimal 1 instruktur dengan peran "Instruktur utama".';
+        }
+
+        if ($course->drip_enabled && ! $course->batches()->published()->exists()) {
+            $reasons[] = 'Kursus dengan jadwal bertahap (drip) harus memiliki minimal 1 batch yang dipublikasikan. Tambahkan batch di tab Batch.';
         }
 
         return $reasons;

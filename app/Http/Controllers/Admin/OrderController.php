@@ -34,7 +34,7 @@ class OrderController extends Controller
         $like = '%'.str_replace(['!', '%', '_'], ['!!', '!%', '!_'], $search).'%';
 
         $orders = Order::query()
-            ->with(['user:id,name,email', 'items:id,order_id,title_snapshot,price'])
+            ->with(['user:id,name,email', 'items:id,order_id,batch_id,title_snapshot,price', 'items.batch:id,name,starts_on,ends_on'])
             ->when($search !== '', fn (Builder $query) => $query->where(fn (Builder $query) => $query
                 ->whereRaw("order_number LIKE ? ESCAPE '!'", [$like])
                 ->orWhereHas('user', fn (Builder $query) => $query->whereRaw("email LIKE ? ESCAPE '!'", [$like]))))
@@ -55,7 +55,7 @@ class OrderController extends Controller
     {
         Gate::authorize('view', $order);
 
-        $order->load(['user:id,name,email', 'items.course:id,slug', 'payments', 'enrollments']);
+        $order->load(['user:id,name,email', 'items.course:id,slug', 'items.batch', 'payments', 'enrollments']);
 
         /** @var User $user */
         $user = $request->user();

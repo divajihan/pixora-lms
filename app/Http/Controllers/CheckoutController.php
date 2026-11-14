@@ -42,6 +42,9 @@ class CheckoutController extends Controller
                     'access_duration_days' => $course->access_duration_days,
                 ],
                 'buyer' => ['name' => $user->name, 'email' => $user->email],
+                // Drip courses: open batches to choose from (pre-selected via ?batch=).
+                'batches' => $state['batches'],
+                'selectedBatchId' => $request->integer('batch') ?: null,
                 'expiryHours' => (int) config('pixora.payments.order_expiry_hours'),
             ]),
         };
@@ -55,7 +58,7 @@ class CheckoutController extends Controller
         $user = $request->user();
 
         // Only the course comes from the URL; the price is read from the database.
-        $order = $createOrder->handle($user, $course);
+        $order = $createOrder->handle($user, $course, $request->integer('batch_id') ?: null);
 
         return to_route('student.orders.show', $order)->with('autoPay', true);
     }
@@ -67,10 +70,10 @@ class CheckoutController extends Controller
         /** @var User $user */
         $user = $request->user();
 
-        $enroll->handle($user, $course);
+        $enroll->handle($user, $course, $request->integer('batch_id') ?: null);
 
         Inertia::flash('toast', ['type' => 'success', 'message' => "Anda terdaftar di \"{$course->title}\"."]);
 
-        return to_route('student.courses.learn', $course);
+        return to_route('learn.course', $course);
     }
 }

@@ -1,6 +1,7 @@
 import { Head, Link, router } from '@inertiajs/react';
 import { ListTree, Trash2 } from 'lucide-react';
 import { useState } from 'react';
+import { CourseTabs } from '@/components/admin/course-tabs';
 import { ConfirmDialog } from '@/components/admin/confirm-dialog';
 import { CourseForm } from '@/components/admin/course-form';
 import { CourseInstructorsCard } from '@/components/admin/course-instructors-card';
@@ -71,6 +72,12 @@ export default function AdminCourseEdit({
                         </Link>
                     </Button>
                 </div>
+
+                <CourseTabs
+                    courseId={course.id}
+                    active="info"
+                    dripEnabled={course.drip_enabled}
+                />
 
                 <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
                     <CourseForm

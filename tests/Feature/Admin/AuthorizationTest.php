@@ -131,8 +131,8 @@ test('course, module and lesson policies per role', function (Role $role, bool $
         ->and($courses->viewCurriculum($user, $other)->allowed())->toBe($viewOtherCurriculum)
         ->and((new ModulePolicy)->update($user, $module))->toBe($manage)
         ->and((new ModulePolicy)->delete($user, $module))->toBe($manage)
-        ->and((new LessonPolicy)->update($user, $lesson))->toBe($manage)
-        ->and((new LessonPolicy)->delete($user, $lesson))->toBe($manage);
+        ->and(app(LessonPolicy::class)->update($user, $lesson))->toBe($manage)
+        ->and(app(LessonPolicy::class)->delete($user, $lesson))->toBe($manage);
 })->with([
     'admin' => [Role::Admin, true, true, true],
     'staff' => [Role::Staff, false, false, false],

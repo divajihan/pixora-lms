@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
 
 /**
@@ -17,6 +18,7 @@ use Illuminate\Support\Carbon;
  * @property int $user_id
  * @property int $course_id
  * @property int|null $order_id
+ * @property int|null $batch_id Required for drip courses.
  * @property EnrollmentStatus $status
  * @property Carbon $enrolled_at
  * @property Carbon|null $expires_at Null = lifetime access.
@@ -25,7 +27,7 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
-#[Fillable(['user_id', 'course_id', 'order_id', 'status', 'enrolled_at', 'expires_at', 'completed_at', 'progress_percent'])]
+#[Fillable(['user_id', 'course_id', 'order_id', 'batch_id', 'status', 'enrolled_at', 'expires_at', 'completed_at', 'progress_percent'])]
 class Enrollment extends Model
 {
     /** @use HasFactory<EnrollmentFactory> */
@@ -77,6 +79,22 @@ class Enrollment extends Model
     public function course(): BelongsTo
     {
         return $this->belongsTo(Course::class)->withTrashed();
+    }
+
+    /**
+     * @return BelongsTo<Batch, $this>
+     */
+    public function batch(): BelongsTo
+    {
+        return $this->belongsTo(Batch::class)->withTrashed();
+    }
+
+    /**
+     * @return HasMany<LessonProgress, $this>
+     */
+    public function lessonProgress(): HasMany
+    {
+        return $this->hasMany(LessonProgress::class);
     }
 
     /**

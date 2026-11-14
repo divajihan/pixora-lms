@@ -23,6 +23,20 @@ return [
     |
     */
 
+    /*
+    |--------------------------------------------------------------------------
+    | Learning (drip per batch)
+    |--------------------------------------------------------------------------
+    |
+    | A lesson with drip_day_offset N opens on batch.starts_on + N days at
+    | unlock_time (HH:MM, app timezone Asia/Jakarta). Offset 0 = "Hari ke-1".
+    |
+    */
+
+    'learning' => [
+        'unlock_time' => env('LESSON_UNLOCK_TIME', '00:00'),
+    ],
+
     'payments' => [
         'gateway' => env('PAYMENT_GATEWAY', 'fake'),
         'order_expiry_hours' => (int) env('ORDER_EXPIRY_HOURS', 24),

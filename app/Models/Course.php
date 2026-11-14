@@ -155,6 +155,16 @@ class Course extends Model
     }
 
     /**
+     * Batches (runs) of a drip course, oldest first.
+     *
+     * @return HasMany<Batch, $this>
+     */
+    public function batches(): HasMany
+    {
+        return $this->hasMany(Batch::class)->orderBy('starts_on')->orderBy('id');
+    }
+
+    /**
      * @return HasMany<Enrollment, $this>
      */
     public function enrollments(): HasMany

@@ -4,14 +4,17 @@ namespace App\Models;
 
 use App\Enums\LessonStatus;
 use App\Enums\LessonType;
+use App\Observers\LessonObserver;
 use Database\Factories\LessonFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Attributes\Scope;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
@@ -41,6 +44,7 @@ use Illuminate\Support\Carbon;
 ])]
 // Defence in depth: video_ref is never serialised implicitly (e.g. model passed straight to Inertia).
 #[Hidden(['video_ref'])]
+#[ObservedBy(LessonObserver::class)]
 class Lesson extends Model
 {
     /** @use HasFactory<LessonFactory> */
@@ -93,6 +97,22 @@ class Lesson extends Model
     public function module(): BelongsTo
     {
         return $this->belongsTo(Module::class);
+    }
+
+    /**
+     * @return HasMany<LessonUnlockOverride, $this>
+     */
+    public function unlockOverrides(): HasMany
+    {
+        return $this->hasMany(LessonUnlockOverride::class);
+    }
+
+    /**
+     * Human day label for the drip schedule: offset 0 = "Hari ke-1".
+     */
+    public function dayNumber(): int
+    {
+        return $this->drip_day_offset + 1;
     }
 
     /**

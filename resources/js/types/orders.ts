@@ -1,3 +1,5 @@
+import type { BatchOption } from '@/types/learning';
+
 export type OrderStatusValue =
     | 'pending'
     | 'paid'
@@ -11,6 +13,12 @@ export type OrderItemData = {
     title: string;
     price: number;
     course_slug: string | null;
+    batch: {
+        id: number;
+        name: string;
+        starts_on: string;
+        ends_on: string;
+    } | null;
 };
 
 export type PaymentData = {
@@ -72,4 +80,7 @@ export type PurchaseInfo = {
     checkout_url: string;
     learn_url: string | null;
     order_url: string | null;
+    /** Drip courses: published, unfinished batches (selectable when is_open). */
+    batches: BatchOption[];
+    requires_batch: boolean;
 };

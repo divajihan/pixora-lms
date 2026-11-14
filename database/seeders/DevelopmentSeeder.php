@@ -24,12 +24,14 @@ class DevelopmentSeeder extends Seeder
         $this->account(Role::Student, 'Siswa Pixora', 'student@pixora.test');
 
         $this->call(CatalogSeeder::class);
+        $this->call(LearningSeeder::class);
 
         $this->command?->table(['Peran', 'Email', 'Kata sandi'], [
             ['admin', config('pixora.seed.admin_email'), '(SEED_ADMIN_PASSWORD)'],
             ['staff', 'staff@pixora.test', 'password'],
             ['instructor', 'instructor@pixora.test', 'password'],
             ['student', 'student@pixora.test', 'password'],
+            ['student (demo)', 'siswa1..8@pixora.test', 'password'],
         ]);
     }
 

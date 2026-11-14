@@ -59,6 +59,7 @@ class CourseController extends Controller
                 'status' => $course->status->value,
                 'status_label' => $course->status->label(),
                 'is_public' => $course->isPublished(),
+                'drip_enabled' => (bool) $course->drip_enabled,
             ],
             ...$loadCurriculum->handle($course),
         ]);

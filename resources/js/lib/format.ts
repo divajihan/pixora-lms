@@ -52,6 +52,42 @@ export function formatDateTime(value: string): string {
     return dateTime.format(new Date(value));
 }
 
+/**
+ * "15–27 November 2026" / "28 Nov – 3 Des 2026" for Y-m-d dates.
+ */
+export function formatDateRange(start: string, end: string): string {
+    const a = new Date(`${start}T00:00:00`);
+    const b = new Date(`${end}T00:00:00`);
+    const sameMonth =
+        a.getMonth() === b.getMonth() && a.getFullYear() === b.getFullYear();
+
+    if (sameMonth) {
+        return `${a.getDate()}–${new Intl.DateTimeFormat('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }).format(b)}`;
+    }
+
+    const short = new Intl.DateTimeFormat('id-ID', {
+        day: 'numeric',
+        month: 'short',
+    });
+
+    return `${short.format(a)} – ${new Intl.DateTimeFormat('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }).format(b)}`;
+}
+
+/**
+ * "Senin, 16 November 2026 00.00" (Asia/Jakarta) — used for unlock dates.
+ */
+export function formatUnlock(iso: string): string {
+    return new Intl.DateTimeFormat('id-ID', {
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        timeZone: 'Asia/Jakarta',
+    }).format(new Date(iso));
+}
+
 const longDate = new Intl.DateTimeFormat('id-ID', {
     day: 'numeric',
     month: 'long',

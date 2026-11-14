@@ -12,10 +12,11 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property int $id
  * @property int $order_id
  * @property int $course_id
+ * @property int|null $batch_id
  * @property string $title_snapshot
  * @property int $price Snapshot, integer rupiah.
  */
-#[Fillable(['order_id', 'course_id', 'title_snapshot', 'price'])]
+#[Fillable(['order_id', 'course_id', 'batch_id', 'title_snapshot', 'price'])]
 class OrderItem extends Model
 {
     /** @use HasFactory<OrderItemFactory> */
@@ -35,6 +36,14 @@ class OrderItem extends Model
     public function order(): BelongsTo
     {
         return $this->belongsTo(Order::class);
+    }
+
+    /**
+     * @return BelongsTo<Batch, $this>
+     */
+    public function batch(): BelongsTo
+    {
+        return $this->belongsTo(Batch::class)->withTrashed();
     }
 
     /**

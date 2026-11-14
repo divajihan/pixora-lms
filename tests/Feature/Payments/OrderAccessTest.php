@@ -104,7 +104,7 @@ test('admin order list supports search and status filter', function () {
 test('the learning page is only for the owner of an accessible enrollment', function (string $state, int $status) {
     Enrollment::factory()->{$state}()->create(['user_id' => $this->owner->id, 'course_id' => $this->course->id]);
 
-    $this->actingAs($this->owner)->get(route('student.courses.learn', $this->course))->assertStatus($status);
+    $this->actingAs($this->owner)->get(route('learn.course', $this->course))->assertStatus($status);
 })->with([
     'active' => ['active', 200],
     'lapsed (past expires_at)' => ['lapsed', 403],
@@ -113,21 +113,22 @@ test('the learning page is only for the owner of an accessible enrollment', func
 ]);
 
 test('students without an enrollment, other roles and guests cannot open the learning page', function () {
-    $this->actingAs($this->owner)->get(route('student.courses.learn', $this->course))->assertNotFound();
+    $this->actingAs($this->owner)->get(route('learn.course', $this->course))->assertNotFound();
 
+    // The player is role-agnostic: without an enrollment it is simply not found.
     $this->actingAs(User::factory()->create()->assignRole('instructor'))
-        ->get(route('student.courses.learn', $this->course))->assertForbidden();
+        ->get(route('learn.course', $this->course))->assertNotFound();
 
     auth()->logout();
-    $this->get(route('student.courses.learn', $this->course))->assertRedirect(route('login'));
+    $this->get(route('learn.course', $this->course))->assertRedirect(route('login'));
 });
 
 test('the enrollment policy only allows the owner', function () {
     $enrollment = Enrollment::factory()->create(['user_id' => $this->owner->id, 'course_id' => $this->course->id]);
     $other = User::factory()->create();
 
-    expect((new EnrollmentPolicy)->learn($this->owner, $enrollment)->allowed())->toBeTrue()
-        ->and((new EnrollmentPolicy)->learn($other, $enrollment)->status())->toBe(404);
+    expect(app(EnrollmentPolicy::class)->learn($this->owner, $enrollment)->allowed())->toBeTrue()
+        ->and(app(EnrollmentPolicy::class)->learn($other, $enrollment)->status())->toBe(404);
 });
 
 test('my courses lists accessible and ended enrollments', function () {

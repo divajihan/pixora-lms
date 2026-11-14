@@ -113,18 +113,39 @@ resources/js/Pages/   # Public, Student, Instructor, Admin
 3. Webhook Midtrans masuk. Sistem memverifikasi signature, mencatat di `webhook_events` (unik per event, agar idempoten), lalu dalam satu transaksi database: update `payments`, set order `paid`, buat `enrollments` (status `active`, `enrolled_at = now`).
 4. Notifikasi email dikirim lewat queue.
 
-**B. Kursus gratis:** siswa klik ambil, langsung dibuat `enrollments` tanpa order (`order_id` null).
+Kursus drip: siswa memilih **batch** (angkatan) di halaman kursus/checkout; `order_items.batch_id` menyimpan pilihan itu,
+dan enrollment yang dibuat setelah pembayaran sukses memakai batch tersebut. Batch divalidasi ulang saat membuat order
+(terbit, belum selesai, pendaftaran belum ditutup, kuota belum penuh). Pembayaran yang sudah sukses **tidak pernah ditolak**
+karena batch penuh: siswa tetap masuk, kelebihan dicatat di log dan ditandai untuk admin. Order pending dipakai ulang hanya
+untuk batch yang sama.
+
+**B. Kursus gratis:** siswa klik ambil, langsung dibuat `enrollments` tanpa order (`order_id` null). Kursus drip gratis tetap
+wajib memilih batch.
 
 **C. Belajar dengan drip (gabungan)**
 
-Waktu buka sebuah lesson dihitung saat dibaca, tanpa job penjadwal:
-1. Cari override untuk enrollment ini dan lesson ini (`lesson_unlock_overrides.enrollment_id = X`). Jika ada, pakai.
-2. Jika tidak, cari override seluruh kelas (`enrollment_id IS NULL`) untuk lesson itu. Jika ada, pakai.
-3. Jika tidak ada, pakai default: `enrollments.enrolled_at + lessons.drip_day_offset hari`.
-4. Override bisa mengatur `unlock_at` (buka lebih awal atau tunda) atau `is_locked = true` (kunci paksa).
-5. Lesson dapat diakses jika enrollment aktif, belum kedaluwarsa, lesson berstatus published, dan waktu buka sudah lewat.
+Waktu buka sebuah lesson dihitung saat dibaca oleh `ComputeLessonAccess`, tanpa job penjadwal:
+1. Kursus tanpa drip (`drip_enabled = false`): semua lesson published terbuka sejak enrollment, tanpa batch.
+2. Lesson pratinjau (`is_preview`) selalu terbuka.
+3. Override per siswa (`lesson_unlock_overrides.enrollment_id = X`, batch siswa itu). Jika ada, pakai.
+4. Jika tidak, override batch (`enrollment_id IS NULL`, `batch_id` = batch siswa). Jika ada, pakai.
+5. Jika tidak ada, pakai default: `batches.starts_on + lessons.drip_day_offset hari` pukul `LESSON_UNLOCK_TIME` (default 00:00)
+   zona `Asia/Jakarta`. Hari ke-1 = tanggal mulai batch (offset 0); UI menampilkan "Hari ke-(offset+1)".
+   Enrollment drip lama tanpa batch memakai `enrolled_at` sebagai titik mulai (fallback).
+6. Lesson dapat diakses jika enrollment aktif dan belum kedaluwarsa, kursus `published` atau `archived` (bukan draft),
+   lesson berstatus published di modul yang tidak terhapus, dan waktu buka sudah lewat.
+7. **Lesson yang sudah terbuka tidak pernah terkunci kembali**: override tidak boleh menggeser lesson yang sudah terbuka
+   ke masa depan, dan reset ke default ditolak bila akan mengunci ulang. Lesson berikutnya tetap mengikuti jadwal, tidak
+   bergantung pada tugas.
 
-Siswa menandai lesson selesai (atau otomatis di ujung video), tercatat di `lesson_progress`. Persentase progres di-cache di `enrollments.progress_percent`.
+Instruktur yang ditugaskan (dan admin) mengatur jadwal di `/kelas/{kursus}/batch/...`: per batch atau per siswa.
+Admin dapat memindahkan siswa ke batch lain (`MoveEnrollmentToBatch`): override per siswa di batch lama dihapus, lesson yang
+sudah terbuka tetap terbuka lewat override per siswa di batch baru.
+
+Siswa menandai lesson selesai (tombol, atau otomatis saat video YouTube berakhir lewat IFrame API), tercatat di
+`lesson_progress`. `enrollments.progress_percent` = floor(selesai / lesson published) dan dihitung ulang
+(`RecalculateCourseProgress`, unik per kursus) saat lesson diterbitkan, ditarik, atau dihapus. Progres 100% belum
+menyelesaikan enrollment (kelulusan & sertifikat di fase berikutnya).
 
 **D. Tugas dan feedback**
 1. Siswa mengunggah jawaban (teks + file) pada lesson atau proyek akhir, dibuat `submissions` (status `submitted`).
@@ -150,6 +171,10 @@ erDiagram
   lessons ||--o| live_sessions : schedules
   users ||--o{ enrollments : enrolls
   courses ||--o{ enrollments : has
+  courses ||--o{ batches : runs
+  batches |o--o{ enrollments : groups
+  batches |o--o{ order_items : chosen_in
+  batches ||--o{ lesson_unlock_overrides : schedules
   orders |o--o{ enrollments : grants
   enrollments ||--o{ lesson_progress : tracks
   lessons ||--o{ lesson_progress : tracked_in
@@ -231,11 +256,23 @@ erDiagram
     datetime ends_at
     string meeting_url
   }
+  batches {
+    bigint id PK
+    bigint course_id FK
+    string name
+    date starts_on
+    date ends_on
+    date registration_closes_on
+    int capacity
+    boolean is_published
+    datetime deleted_at
+  }
   enrollments {
     bigint id PK
     bigint user_id FK
     bigint course_id FK
     bigint order_id FK
+    bigint batch_id FK
     string status
     datetime enrolled_at
     datetime expires_at
@@ -245,9 +282,10 @@ erDiagram
   lesson_unlock_overrides {
     bigint id PK
     bigint lesson_id FK
+    bigint batch_id FK
     bigint enrollment_id FK
+    bigint scope_key
     datetime unlock_at
-    boolean is_locked
     bigint created_by FK
   }
   lesson_progress {
@@ -295,6 +333,7 @@ erDiagram
     bigint id PK
     bigint order_id FK
     bigint course_id FK
+    bigint batch_id FK
     string title_snapshot
     int price
   }
@@ -343,8 +382,9 @@ Semua tabel memakai `id` bigint unsigned auto-increment, `created_at`, `updated_
 ### Akses dan progres
 | Tabel | Kolom penting | Catatan / indeks |
 |---|---|---|
-| `enrollments` | user_id, course_id, order_id (null untuk gratis), status (`active`/`completed`/`expired`/`revoked`), enrolled_at, expires_at, completed_at, progress_percent | Unik (user_id, course_id); indeks (course_id, status) |
-| `lesson_unlock_overrides` | lesson_id, enrollment_id (null = seluruh kelas), unlock_at (null jika hanya kunci), is_locked, created_by | Unik (lesson_id, enrollment_id) berlaku untuk override per siswa. MySQL mengizinkan banyak NULL di indeks unik, jadi override seluruh kelas (enrollment_id NULL) harus dijaga unik di aplikasi (`updateOrCreate`) atau lewat kolom generated `scope_key = COALESCE(enrollment_id, 0)` yang di-unique bersama lesson_id. Prioritas: per siswa > seluruh kelas > default |
+| `batches` | course_id, name, starts_on (Hari ke-1), ends_on, registration_closes_on (null = sampai ends_on), capacity (null = tak terbatas), is_published, deleted_at | Hanya untuk kursus drip. Status dihitung dari tanggal: `upcoming`/`running`/`finished`. Indeks (course_id, starts_on). Soft delete; batch yang punya siswa tidak bisa dihapus. `starts_on` tidak bisa diubah setelah batch dimulai; kuota tidak boleh di bawah jumlah siswa |
+| `enrollments` | user_id, course_id, order_id (null untuk gratis), batch_id (null untuk kursus non-drip), status (`active`/`completed`/`expired`/`revoked`), enrolled_at, expires_at, completed_at, progress_percent | Unik (user_id, course_id); indeks (course_id, status), (batch_id, status). FK batch `restrictOnDelete`. Kuota batch dihitung dari enrollment `active`/`completed` |
+| `lesson_unlock_overrides` | lesson_id, batch_id, enrollment_id (null = seluruh batch), scope_key, unlock_at, created_by | Tanpa `is_locked` (lesson terbuka tidak pernah dikunci ulang). Unik (lesson_id, batch_id, scope_key) dengan `scope_key = enrollment_id ?? 0` diisi oleh model (kolom generated tidak dipakai karena MySQL menolak FK cascade pada kolom dasarnya). Prioritas: per siswa > batch > default |
 | `lesson_progress` | enrollment_id, lesson_id, status (`in_progress`/`completed`), watched_seconds, completed_at | Unik (enrollment_id, lesson_id) |
 
 ### Tugas
@@ -359,7 +399,7 @@ Semua tabel memakai `id` bigint unsigned auto-increment, `created_at`, `updated_
 | Tabel | Kolom penting | Catatan / indeks |
 |---|---|---|
 | `orders` | user_id, order_number (unik), subtotal, discount (default 0), total, status (`pending`/`paid`/`failed`/`expired`/`refunded`), paid_at, expires_at | Indeks (user_id, status) |
-| `order_items` | order_id, course_id, title_snapshot, price | Snapshot harga; siap untuk bundle di tahap 2 |
+| `order_items` | order_id, course_id, batch_id (kursus drip), title_snapshot, price | Snapshot harga; batch pilihan siswa (divalidasi ulang saat order dibuat); siap untuk bundle di tahap 2 |
 | `payments` | order_id, gateway, external_id (unik), payment_type, gross_amount, status, raw_payload (json), paid_at | Satu order bisa punya beberapa percobaan |
 | `webhook_events` | gateway, event_id, payload (json), processed_at | Unik (gateway, event_id) untuk idempotensi |
 
@@ -376,10 +416,18 @@ Semua tabel memakai `id` bigint unsigned auto-increment, `created_at`, `updated_
 - Perubahan harga kursus tidak memengaruhi order lama (snapshot di `order_items`).
 - Lesson yang dihapus setelah ada progres sebaiknya diarsipkan (status `draft`), bukan dihapus, agar riwayat tidak rusak.
 - Kursus selesai jika semua lesson `published` yang wajib berstatus `completed` dan semua tugas wajib `approved`. Aturan pasti bisa disesuaikan dengan klien.
-- Kedaluwarsa akses (`access_duration_days`) dihitung dari `enrolled_at`; null berarti seumur hidup.
+- Kedaluwarsa akses (`access_duration_days`) dihitung dari `enrolled_at` (kursus non-drip) atau dari akhir batch
+  (`ends_on` 23:59, kursus drip); null berarti seumur hidup.
+- Kursus drip baru bisa diterbitkan jika punya minimal 1 batch terbit. Pendaftaran batch terbuka jika batch terbit, hari ini
+  ≤ `ends_on` dan ≤ `registration_closes_on`, serta kuota belum penuh.
+- Lesson yang sudah terbuka tidak pernah terkunci kembali; jadwal lesson berikutnya tidak bergantung pada tugas.
+  Karena itu `drip_day_offset` lesson published tidak bisa dimundurkan bila lesson itu sudah terbuka menurut jadwal
+  default di batch (yang sudah dimulai dan punya siswa) dan akan terkunci lagi dengan offset baru (`SaveLesson`).
 
 **Keamanan:**
 - Semua pengecekan akses dilakukan di server (Policy + `ComputeLessonAccess`), bukan hanya disembunyikan di UI.
+  Player (`/belajar`) hanya mengirim embed video, `summary_html`, dan `meeting_url` untuk lesson yang sudah terbuka bagi
+  siswa itu; lesson terkunci hanya mengirim judul dan tanggal buka (diuji di `tests/Feature/Learning/LearnPlayerTest.php`).
 - YouTube unlisted tidak bisa mencegah tautan dibagikan. Mitigasi: ID video hanya dikirim ke siswa yang berhak. Untuk proteksi lebih kuat, ganti ke Bunny/Vimeo lewat `VideoProvider`.
 - Upload: batasi tipe dan ukuran, simpan di disk privat, nama file diacak, tampilkan lewat signed URL.
 - Webhook pembayaran: verifikasi signature, idempoten, dan hanya percaya data dari webhook (jangan dari redirect browser).
@@ -395,7 +443,7 @@ Semua tabel memakai `id` bigint unsigned auto-increment, `created_at`, `updated_
 | 1 | Auth, role/permission, katalog, halaman detail kursus | Katalog publik |
 | 2 | Admin: CRUD kursus, modul, lesson (video, rangkuman, live) | Admin bisa menginput kursus |
 | 3 | Order, Midtrans (sandbox), webhook, enrollment, kursus gratis | Beli dan dapat akses |
-| 4 | Player lesson, drip + override instruktur, progres | Alur belajar lengkap |
+| 4 | Batch (angkatan) per kursus drip, player lesson, drip per batch + override instruktur (batch/siswa), progres | Alur belajar lengkap |
 | 5 | Tugas, submission, antrean instruktur, feedback tulisan + gambar | Siklus tugas selesai |
 | 6 | Sertifikat PDF + halaman verifikasi | Kursus bisa diselesaikan |
 | 7 | Notifikasi, laporan dasar, hardening, backup, deploy VPS | Siap diserahkan |
@@ -409,6 +457,6 @@ Semua tabel memakai `id` bigint unsigned auto-increment, `created_at`, `updated_
 
 **Pertanyaan terbuka untuk klien:**
 1. Syarat lulus sertifikat: semua lesson selesai saja, atau juga semua tugas wajib disetujui?
-2. Apakah lesson berikutnya menunggu tugas disetujui, atau tetap terbuka sesuai jadwal?
+2. ~~Apakah lesson berikutnya menunggu tugas disetujui?~~ Diputuskan di Fase 4: tetap terbuka sesuai jadwal batch.
 3. Akses kursus seumur hidup atau ada batas waktu?
 4. Apakah refund diperlukan, dan bagaimana akses dicabut saat refund?

@@ -1,10 +1,11 @@
-import { Head } from '@inertiajs/react';
-import { ExternalLink, ListTree, Lock } from 'lucide-react';
+import { Head, Link } from '@inertiajs/react';
+import { ExternalLink, ListTree, Lock, Users } from 'lucide-react';
 import { EmptyState } from '@/components/admin/empty-state';
 import { StatusBadge } from '@/components/admin/status-badge';
 import { CurriculumReadonly } from '@/components/curriculum-readonly';
 import { Button } from '@/components/ui/button';
 import { formatDuration } from '@/lib/format';
+import { batches as classBatches } from '@/routes/classes';
 import { show as publicShow } from '@/routes/courses';
 import { dashboard } from '@/routes/instructor';
 import { index as myCourses, show } from '@/routes/instructor/courses';
@@ -16,6 +17,7 @@ import type {
 
 type Props = {
     course: {
+        drip_enabled: boolean;
         id: number;
         title: string;
         slug: string;
@@ -50,18 +52,28 @@ export default function InstructorCourseShow({
                             {formatDuration(totals.duration_seconds)}
                         </p>
                     </div>
-                    {course.is_public && (
-                        <Button asChild variant="outline">
-                            <a
-                                href={publicShow(course.slug).url}
-                                target="_blank"
-                                rel="noreferrer"
-                            >
-                                Halaman publik
-                                <ExternalLink />
-                            </a>
-                        </Button>
-                    )}
+                    <div className="flex flex-wrap gap-2">
+                        {course.drip_enabled && (
+                            <Button asChild>
+                                <Link href={classBatches(course.id)}>
+                                    <Users />
+                                    Kelola kelas
+                                </Link>
+                            </Button>
+                        )}
+                        {course.is_public && (
+                            <Button asChild variant="outline">
+                                <a
+                                    href={publicShow(course.slug).url}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                >
+                                    Halaman publik
+                                    <ExternalLink />
+                                </a>
+                            </Button>
+                        )}
+                    </div>
                 </div>
 
                 <p className="flex items-center gap-2 rounded-md border bg-muted/40 p-3 text-sm text-muted-foreground">
