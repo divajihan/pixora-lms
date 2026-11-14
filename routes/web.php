@@ -64,8 +64,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('batch/{batch}/jadwal/{lesson}', [ClassController::class, 'setOverride'])->name('schedule.set');
         Route::delete('batch/{batch}/jadwal/{lesson}', [ClassController::class, 'resetOverride'])->name('schedule.reset');
         Route::get('batch/{batch}/siswa/{enrollment}/jadwal', [ClassController::class, 'studentSchedule'])->name('student-schedule');
-        Route::post('batch/{batch}/siswa/{enrollment}/jadwal/{lesson}', [ClassController::class, 'setOverride'])->name('student-schedule.set');
-        Route::delete('batch/{batch}/siswa/{enrollment}/jadwal/{lesson}', [ClassController::class, 'resetOverride'])->name('student-schedule.reset');
+        Route::post('batch/{batch}/siswa/{enrollment}/jadwal/{lesson}', [ClassController::class, 'setStudentOverride'])->name('student-schedule.set');
+        Route::delete('batch/{batch}/siswa/{enrollment}/jadwal/{lesson}', [ClassController::class, 'resetStudentOverride'])->name('student-schedule.reset');
         Route::post('batch/{batch}/siswa/{enrollment}/pindah', [ClassController::class, 'moveEnrollment'])->name('move');
     });
 

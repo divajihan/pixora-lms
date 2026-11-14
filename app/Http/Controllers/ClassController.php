@@ -50,9 +50,9 @@ class ClassController extends Controller
 
         $students = $batch->enrollments()
             ->with('user:id,name,email')
-            ->when($search !== '', fn (Builder $query) => $query->whereHas('user', fn (Builder $query) => $query
+            ->when($search !== '', fn (Builder $query) => $query->whereHas('user', fn (Builder $query) => $query->where(fn (Builder $query) => $query
                 ->whereRaw("name LIKE ? ESCAPE '!'", [$like])
-                ->orWhereRaw("email LIKE ? ESCAPE '!'", [$like])))
+                ->orWhereRaw("email LIKE ? ESCAPE '!'", [$like]))))
             ->orderByDesc('progress_percent')
             ->orderBy('id')
             ->paginate(20)
@@ -109,32 +109,24 @@ class ClassController extends Controller
         ]);
     }
 
-    public function setOverride(Request $request, Course $course, Batch $batch, Lesson $lesson, SetLessonUnlockOverride $set, ?Enrollment $enrollment = null): RedirectResponse
+    public function setOverride(Request $request, Course $course, Batch $batch, Lesson $lesson, SetLessonUnlockOverride $set): RedirectResponse
     {
-        Gate::authorize('manageClass', $course);
-        $this->ensureBelongs($course, $batch, $enrollment, $lesson);
-
-        $data = $request->validate(['unlock_at' => ['required', 'date']], [], ['unlock_at' => 'tanggal buka']);
-
-        /** @var User $user */
-        $user = $request->user();
-        $set->set($lesson, $batch, $enrollment, CarbonImmutable::parse((string) $data['unlock_at'], config('app.timezone')), $user);
-
-        Inertia::flash('toast', ['type' => 'success', 'message' => "Jadwal \"{$lesson->title}\" diperbarui."]);
-
-        return back();
+        return $this->applyOverride($request, $course, $batch, null, $lesson, $set);
     }
 
-    public function resetOverride(Course $course, Batch $batch, Lesson $lesson, SetLessonUnlockOverride $set, ?Enrollment $enrollment = null): RedirectResponse
+    public function setStudentOverride(Request $request, Course $course, Batch $batch, Enrollment $enrollment, Lesson $lesson, SetLessonUnlockOverride $set): RedirectResponse
     {
-        Gate::authorize('manageClass', $course);
-        $this->ensureBelongs($course, $batch, $enrollment, $lesson);
+        return $this->applyOverride($request, $course, $batch, $enrollment, $lesson, $set);
+    }
 
-        $set->reset($lesson, $batch, $enrollment);
+    public function resetOverride(Course $course, Batch $batch, Lesson $lesson, SetLessonUnlockOverride $set): RedirectResponse
+    {
+        return $this->removeOverride($course, $batch, null, $lesson, $set);
+    }
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => "Jadwal \"{$lesson->title}\" kembali ke jadwal default."]);
-
-        return back();
+    public function resetStudentOverride(Course $course, Batch $batch, Enrollment $enrollment, Lesson $lesson, SetLessonUnlockOverride $set): RedirectResponse
+    {
+        return $this->removeOverride($course, $batch, $enrollment, $lesson, $set);
     }
 
     /**
@@ -199,6 +191,34 @@ class ClassController extends Controller
                 ];
             })->values()->all(),
         ])->values()->all();
+    }
+
+    private function applyOverride(Request $request, Course $course, Batch $batch, ?Enrollment $enrollment, Lesson $lesson, SetLessonUnlockOverride $set): RedirectResponse
+    {
+        Gate::authorize('manageClass', $course);
+        $this->ensureBelongs($course, $batch, $enrollment, $lesson);
+
+        $data = $request->validate(['unlock_at' => ['required', 'date']], [], ['unlock_at' => 'tanggal buka']);
+
+        /** @var User $user */
+        $user = $request->user();
+        $set->set($lesson, $batch, $enrollment, CarbonImmutable::parse((string) $data['unlock_at'], config('app.timezone')), $user);
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => "Jadwal \"{$lesson->title}\" diperbarui."]);
+
+        return back();
+    }
+
+    private function removeOverride(Course $course, Batch $batch, ?Enrollment $enrollment, Lesson $lesson, SetLessonUnlockOverride $set): RedirectResponse
+    {
+        Gate::authorize('manageClass', $course);
+        $this->ensureBelongs($course, $batch, $enrollment, $lesson);
+
+        $set->reset($lesson, $batch, $enrollment);
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => "Jadwal \"{$lesson->title}\" kembali ke jadwal ".($enrollment ? 'batch' : 'default').'.']);
+
+        return back();
     }
 
     /**
