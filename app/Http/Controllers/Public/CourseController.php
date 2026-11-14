@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Public;
 
 use App\Actions\Catalog\CatalogFilters;
+use App\Actions\Catalog\PublicCurriculum;
 use App\Actions\Catalog\SearchCourses;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\CourseCardResource;
@@ -41,7 +42,7 @@ class CourseController extends Controller
         ]);
     }
 
-    public function show(Course $course): Response
+    public function show(Course $course, PublicCurriculum $publicCurriculum): Response
     {
         $course->load([
             'category:id,name,slug',
@@ -55,6 +56,8 @@ class CourseController extends Controller
                 'description' => Str::limit((string) ($course->summary ?: $course->description), 160),
             ],
             'course' => CourseDetailResource::make($course)->resolve(),
+            // Published lessons only; video data only for preview lessons (see PublicCurriculum).
+            'curriculum' => $publicCurriculum->handle($course),
         ]);
     }
 }

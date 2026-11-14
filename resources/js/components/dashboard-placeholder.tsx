@@ -1,4 +1,7 @@
+import { Link } from '@inertiajs/react';
+import type { InertiaLinkProps } from '@inertiajs/react';
 import type { LucideIcon } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -11,8 +14,11 @@ import {
 export type PlaceholderItem = {
     title: string;
     description: string;
-    phase: number;
     icon: LucideIcon;
+    /** Phase in which the feature arrives (shown as "Segera hadir"). */
+    phase?: number;
+    /** Available now: the card links here. */
+    href?: NonNullable<InertiaLinkProps['href']>;
 };
 
 export function DashboardPlaceholder({
@@ -39,24 +45,47 @@ export function DashboardPlaceholder({
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {items.map((item) => (
-                    <Card key={item.title} className="gap-3">
-                        <CardHeader>
-                            <div className="flex items-start justify-between gap-2">
-                                <span className="flex size-9 items-center justify-center rounded-md bg-muted text-muted-foreground">
-                                    <item.icon className="size-4" />
-                                </span>
-                                <Badge variant="secondary">
-                                    Segera hadir · Fase {item.phase}
-                                </Badge>
-                            </div>
-                            <CardTitle className="pt-2">{item.title}</CardTitle>
-                            <CardDescription>
-                                {item.description}
-                            </CardDescription>
-                        </CardHeader>
-                    </Card>
-                ))}
+                {items.map((item) => {
+                    const content = (
+                        <Card className="h-full gap-3 transition-shadow group-hover:shadow-md">
+                            <CardHeader>
+                                <div className="flex items-start justify-between gap-2">
+                                    <span className="flex size-9 items-center justify-center rounded-md bg-muted text-muted-foreground">
+                                        <item.icon className="size-4" />
+                                    </span>
+                                    {item.href ? (
+                                        <ArrowRight className="size-4 text-muted-foreground group-hover:text-foreground" />
+                                    ) : (
+                                        <Badge variant="secondary">
+                                            Segera hadir
+                                            {item.phase
+                                                ? ` · Fase ${item.phase}`
+                                                : ''}
+                                        </Badge>
+                                    )}
+                                </div>
+                                <CardTitle className="pt-2">
+                                    {item.title}
+                                </CardTitle>
+                                <CardDescription>
+                                    {item.description}
+                                </CardDescription>
+                            </CardHeader>
+                        </Card>
+                    );
+
+                    return item.href ? (
+                        <Link
+                            key={item.title}
+                            href={item.href}
+                            className="group rounded-xl focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                        >
+                            {content}
+                        </Link>
+                    ) : (
+                        <div key={item.title}>{content}</div>
+                    );
+                })}
             </div>
         </div>
     );

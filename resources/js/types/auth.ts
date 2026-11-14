@@ -18,6 +18,8 @@ export type Auth = {
     user: User;
     /** For UI/navigation only; authorization is enforced on the server. */
     roles: RoleName[];
+    /** Permission names, for UI/navigation only. */
+    permissions: string[];
 };
 
 export type Passkey = {

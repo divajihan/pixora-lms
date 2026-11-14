@@ -2,10 +2,14 @@ import { Head, usePage } from '@inertiajs/react';
 import { BarChart3, BookOpen, Receipt, Settings, Users } from 'lucide-react';
 import { DashboardPlaceholder } from '@/components/dashboard-placeholder';
 import { dashboard } from '@/routes/admin';
+import { index as adminCourses } from '@/routes/admin/courses';
+import { index as adminUsers } from '@/routes/admin/users';
 
 export default function AdminDashboard() {
     const { auth } = usePage().props;
     const isStaff = !auth.roles.includes('admin');
+    const canManageCourses = auth.permissions.includes('courses.manage');
+    const canManageUsers = auth.permissions.includes('users.manage');
 
     return (
         <>
@@ -22,8 +26,10 @@ export default function AdminDashboard() {
                         title: 'Kursus',
                         description:
                             'Buat dan kelola kursus, modul, dan lesson.',
-                        phase: 2,
                         icon: BookOpen,
+                        ...(canManageCourses
+                            ? { href: adminCourses() }
+                            : { phase: 2 }),
                     },
                     {
                         title: 'Order & pembayaran',
@@ -34,8 +40,10 @@ export default function AdminDashboard() {
                     {
                         title: 'Pengguna',
                         description: 'Kelola akun siswa, instruktur, dan staf.',
-                        phase: 7,
                         icon: Users,
+                        ...(canManageUsers
+                            ? { href: adminUsers() }
+                            : { phase: 7 }),
                     },
                     {
                         title: 'Laporan',

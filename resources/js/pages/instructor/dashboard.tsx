@@ -2,6 +2,7 @@ import { Head, usePage } from '@inertiajs/react';
 import { BookOpen, CalendarClock, ClipboardCheck, Users } from 'lucide-react';
 import { DashboardPlaceholder } from '@/components/dashboard-placeholder';
 import { dashboard } from '@/routes/instructor';
+import { index as myCourses } from '@/routes/instructor/courses';
 
 export default function InstructorDashboard() {
     const { auth } = usePage().props;
@@ -15,9 +16,10 @@ export default function InstructorDashboard() {
                 items={[
                     {
                         title: 'Kursus saya',
-                        description: 'Kursus yang ditugaskan kepada Anda.',
-                        phase: 2,
+                        description:
+                            'Kursus yang ditugaskan kepada Anda dan kurikulumnya.',
                         icon: BookOpen,
+                        href: myCourses(),
                     },
                     {
                         title: 'Pembukaan lesson',

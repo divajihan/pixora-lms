@@ -4,10 +4,13 @@ namespace Database\Seeders;
 
 use App\Enums\CourseInstructorRole;
 use App\Enums\CourseStatus;
+use App\Enums\LessonStatus;
+use App\Enums\LessonType;
 use App\Enums\Role;
 use App\Models\Category;
 use App\Models\Course;
 use App\Models\User;
+use Database\Factories\LessonFactory;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Str;
 
@@ -78,6 +81,76 @@ class CatalogSeeder extends Seeder
                     'role' => $position === 0 ? CourseInstructorRole::Lead->value : CourseInstructorRole::Assistant->value,
                 ],
             ])->all());
+
+            if ($status !== CourseStatus::Archived) {
+                $this->curriculum($course, $index);
+            }
+        }
+    }
+
+    /**
+     * 2–4 modules with 3–6 lessons each: mostly video, some live, the first
+     * lesson is a free preview and some lessons are drafts. Deterministic per
+     * course index; skipped when the course already has a curriculum.
+     */
+    private function curriculum(Course $course, int $seed): void
+    {
+        if ($course->modules()->withTrashed()->exists()) {
+            return;
+        }
+
+        $moduleTitles = ['Pengenalan', 'Dasar-dasar', 'Praktik terarah', 'Proyek akhir'];
+        $lessonTitles = [
+            'Gambaran umum materi', 'Menyiapkan alat kerja', 'Konsep inti', 'Contoh kasus nyata',
+            'Latihan bertahap', 'Kesalahan yang sering terjadi', 'Tips dari instruktur',
+        ];
+
+        $moduleCount = 2 + ($seed % 3);
+        $dripDay = 0;
+
+        for ($m = 0; $m < $moduleCount; $m++) {
+            $module = $course->modules()->create([
+                'title' => 'Modul '.($m + 1).': '.$moduleTitles[$m],
+                'position' => $m,
+            ]);
+
+            $lessonCount = 3 + (($seed + $m) % 4);
+
+            for ($l = 0; $l < $lessonCount; $l++) {
+                $isLive = ($l + $m + $seed) % 5 === 4;
+                $title = $isLive
+                    ? 'Sesi live: tanya jawab '.Str::lower($moduleTitles[$m])
+                    : $lessonTitles[($l + $m) % count($lessonTitles)];
+
+                $lesson = $module->lessons()->create([
+                    'course_id' => $course->id,
+                    'title' => $title,
+                    'slug' => Str::slug('m'.($m + 1).'-'.($l + 1).'-'.$title),
+                    'type' => $isLive ? LessonType::Live : LessonType::Video,
+                    'video_provider' => $isLive ? null : 'youtube',
+                    'video_ref' => $isLive ? null : LessonFactory::SAMPLE_VIDEO_ID,
+                    'duration_seconds' => $isLive ? 3600 : 240 + (($seed * 37 + $m * 11 + $l * 53) % 900),
+                    'summary_html' => '<p>Ringkasan <strong>'.e($title).'</strong>: poin penting yang dibahas dalam lesson ini.</p><ul><li>Konsep utama</li><li>Langkah praktik</li></ul>',
+                    'drip_day_offset' => $course->drip_enabled ? $dripDay : 0,
+                    'position' => $l,
+                    // Last lesson of every other module is still a draft.
+                    'status' => ($l === $lessonCount - 1 && $m % 2 === 1) ? LessonStatus::Draft : LessonStatus::Published,
+                    'is_preview' => $m === 0 && $l === 0,
+                ]);
+
+                if ($isLive) {
+                    $startsAt = now()->startOfDay()->addDays(7 + $m * 7 + $l)->setTime(19, 0);
+                    $lesson->liveSession()->create([
+                        'starts_at' => $startsAt,
+                        'ends_at' => $startsAt->addHour(),
+                        'platform' => 'Zoom',
+                        'meeting_url' => 'https://meet.example.test/pixora-'.$course->id.'-'.$lesson->id,
+                        'notes' => 'Tautan aktif 10 menit sebelum sesi dimulai.',
+                    ]);
+                }
+
+                $dripDay++;
+            }
         }
     }
 

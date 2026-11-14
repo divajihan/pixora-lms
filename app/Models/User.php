@@ -94,6 +94,22 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
     }
 
     /**
+     * Whether this user is the only active admin left. Such an account cannot
+     * be deleted, deactivated or lose the admin role (no lock-out).
+     */
+    public function isLastActiveAdmin(): bool
+    {
+        if (! $this->is_active || ! $this->hasRole(Role::Admin->value)) {
+            return false;
+        }
+
+        return ! User::role(Role::Admin->value)
+            ->where('is_active', true)
+            ->whereKeyNot($this->id)
+            ->exists();
+    }
+
+    /**
      * The user's highest-privilege role (admin > staff > instructor > student).
      */
     public function primaryRole(): ?Role
