@@ -4,9 +4,11 @@ namespace App\Models;
 
 use App\Enums\LessonStatus;
 use App\Enums\LessonType;
+use App\Observers\LessonObserver;
 use Database\Factories\LessonFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Attributes\Scope;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -42,6 +44,7 @@ use Illuminate\Support\Carbon;
 ])]
 // Defence in depth: video_ref is never serialised implicitly (e.g. model passed straight to Inertia).
 #[Hidden(['video_ref'])]
+#[ObservedBy(LessonObserver::class)]
 class Lesson extends Model
 {
     /** @use HasFactory<LessonFactory> */
