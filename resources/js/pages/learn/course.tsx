@@ -1,10 +1,14 @@
 import { Head, Link } from '@inertiajs/react';
-import { CalendarDays, PlayCircle } from 'lucide-react';
+import { CalendarDays, PlayCircle, Trophy } from 'lucide-react';
 import { EmptyState } from '@/components/admin/empty-state';
 import { LessonOutline } from '@/components/learn/lesson-outline';
 import { Button } from '@/components/ui/button';
 import { formatDate, formatDateRange } from '@/lib/format';
-import { course as courseRoute, lesson as lessonRoute } from '@/routes/learn';
+import {
+    course as courseRoute,
+    finalProject as finalProjectRoute,
+    lesson as lessonRoute,
+} from '@/routes/learn';
 import { dashboard } from '@/routes/student';
 import { index as myCourses } from '@/routes/student/courses';
 import type {
@@ -19,6 +23,7 @@ type Props = {
     modules: OutlineModule[];
     counts: { total: number; completed: number; unlocked: number };
     continueSlug: string | null;
+    finalProject: { title: string; opens_at: string | null } | null;
 };
 
 export default function LearnCourse({
@@ -27,6 +32,7 @@ export default function LearnCourse({
     modules,
     counts,
     continueSlug,
+    finalProject,
 }: Props) {
     const nextLocked = modules
         .flatMap((module) => module.lessons)
@@ -131,6 +137,38 @@ export default function LearnCourse({
                     />
                 ) : (
                     <LessonOutline courseSlug={course.slug} modules={modules} />
+                )}
+
+                {finalProject && (
+                    <section
+                        aria-label="Proyek akhir"
+                        className="flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-card p-4"
+                    >
+                        <div className="flex items-start gap-3">
+                            <Trophy className="mt-0.5 size-5 text-primary" />
+                            <div>
+                                <p className="text-xs font-medium tracking-wide text-primary uppercase">
+                                    Proyek akhir
+                                </p>
+                                <p className="font-semibold">
+                                    {finalProject.title}
+                                </p>
+                                {finalProject.opens_at && (
+                                    <p className="text-sm text-muted-foreground">
+                                        Terbuka{' '}
+                                        {formatDate(finalProject.opens_at)}
+                                    </p>
+                                )}
+                            </div>
+                        </div>
+                        {!finalProject.opens_at && (
+                            <Button asChild variant="outline">
+                                <Link href={finalProjectRoute(course.slug)}>
+                                    Buka proyek akhir
+                                </Link>
+                            </Button>
+                        )}
+                    </section>
                 )}
             </div>
         </>

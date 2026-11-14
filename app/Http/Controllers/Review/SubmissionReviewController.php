@@ -19,6 +19,7 @@ use App\Models\Submission;
 use App\Models\SubmissionComment;
 use App\Models\User;
 use App\Policies\SubmissionPolicy;
+use App\Rules\AllowedImage;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -135,7 +136,12 @@ class SubmissionReviewController extends Controller
                 : route('submissions.index'),
             'canComment' => $commentBlocker === null,
             'commentBlocker' => $commentBlocker,
-            'commentMaxImages' => (int) config('pixora.assignments.comment_max_images', 5),
+            'imageLimits' => [
+                'max_images' => (int) config('pixora.assignments.comment_max_images', 5),
+                'max_image_kb' => (int) config('pixora.assignments.max_image_kb', 10240),
+                'max_image_label' => AllowedImage::humanSize((int) config('pixora.assignments.max_image_kb', 10240)),
+                'accept' => implode(',', AllowedImage::MIMES),
+            ],
         ]);
     }
 

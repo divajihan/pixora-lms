@@ -101,3 +101,24 @@ const longDate = new Intl.DateTimeFormat('id-ID', {
 export function formatDate(iso: string): string {
     return longDate.format(new Date(iso));
 }
+
+/**
+ * "2 hari 4 jam lagi" / "35 menit lagi" / "lewat 3 jam" relative to `now`.
+ * Call on the client only (e.g. in an effect) to avoid SSR mismatches.
+ */
+export function formatRemaining(iso: string, now: number = Date.now()): string {
+    const diff = new Date(iso).getTime() - now;
+    const minutes = Math.floor(Math.abs(diff) / 60000);
+    const days = Math.floor(minutes / 1440);
+    const hours = Math.floor((minutes % 1440) / 60);
+    const mins = minutes % 60;
+    const parts =
+        days > 0
+            ? [`${days} hari`, hours > 0 ? `${hours} jam` : '']
+            : hours > 0
+              ? [`${hours} jam`, mins > 0 ? `${mins} menit` : '']
+              : [`${mins} menit`];
+    const text = parts.filter(Boolean).join(' ');
+
+    return diff >= 0 ? `${text} lagi` : `lewat ${text}`;
+}
