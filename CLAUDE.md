@@ -17,8 +17,10 @@ Baca dokumen itu sebelum mengerjakan fitur apa pun.
 - Fase selesai: **Fase 0** (setup), **Fase 1** (auth, role/permission, katalog publik),
   **Fase 2** (panel admin konten: kursus, kurikulum, pengguna; instruktur read-only),
   **Fase 3** (checkout, Midtrans Snap sandbox, webhook, enrollment, kursus gratis, pesanan — branch `feat/phase-3-checkout-enrollment`).
-  Fase berikutnya: **Fase 4** (player lesson, drip + override instruktur, progres). Halaman belajar saat ini hanya placeholder.
-- `lessons.drip_day_offset` sudah disimpan, tetapi **logika pembukaan lesson (drip/override) adalah Fase 4** — jangan dibuat sebelum itu.
+  **Fase 4** (batch per kursus drip, player lesson, drip per batch + override instruktur, progres — branch
+  `feat/phase-4-batches-learning`).
+  Fase berikutnya: **Fase 5** (tugas, submission, feedback). Jangan membuat tugas/feedback, sertifikat, atau notifikasi
+  lesson baru sebelum fasenya.
 
 ## Stack
 
@@ -41,14 +43,21 @@ app/
   Actions/Payments/     # HandlePaymentWebhook, ApplyPaymentNotification (inti idempoten), ReconcileOrder (Status API)
   Actions/Enrollments/  # GrantEnrollment (race-safe), EnrollInFreeCourse
   Actions/Catalog/PurchaseState.php   # CTA halaman kursus (beli / gratis / lanjut belajar / lanjut bayar)
-  Actions/<Modul>/      # fase berikutnya: Learning, Assignment, Certificate
+  Actions/Learning/     # ComputeLessonAccess (+ LessonAccess), BuildCourseOutline, SetLessonUnlockOverride,
+                        # MoveEnrollmentToBatch, MarkLessonCompleted, UnmarkLessonCompleted, RecalculateEnrollmentProgress
+  Actions/Batches/      # SaveBatch (simpan + hapus dengan aturan)
+  Actions/Enrollments/ResolveEnrollmentBatch.php   # validasi batch pilihan saat checkout/ambil gratis
+  Actions/<Modul>/      # fase berikutnya: Assignment, Certificate
   Enums/                # Role, Permission, CourseStatus, CourseInstructorRole, CoursePriceFilter, LessonType, LessonStatus
   Http/Controllers/
     Public/             # HomeController, CourseController (katalog & detail + kurikulum publik)
     Admin/              # CourseController, CourseStatusController, CourseInstructorController,
                         # CurriculumController, ModuleController, LessonController, UserController
     Instructor/         # CourseController ("Kursus saya", read-only)
-    Student/            # CourseController (kursus saya, belajar placeholder), OrderController (pesanan, invoice, cek status, simulasi)
+    Student/            # CourseController (kursus saya), OrderController (pesanan, invoice, cek status, simulasi)
+    LearnController     # player /belajar/{course}[/lesson/{lesson}] + tandai/batalkan selesai
+    ClassController     # /kelas/{course}/batch/...: siswa, jadwal batch & per siswa, pindah batch (admin)
+    Admin/BatchController   # batch per kursus drip (courses.manage)
     Admin/OrderController   # pesanan (orders.manage); tandai lunas/refund (admin)
     CheckoutController  # ringkasan, buat order, ambil gratis
     WebhookController   # POST /webhooks/midtrans
@@ -59,7 +68,9 @@ app/
   Http/Resources/       # CourseCard/CourseDetail (publik), Admin/AdminCourseResource, Admin/CurriculumLessonResource (staf)
   Models/               # User, Category, Course, CourseInstructor (pivot), InstructorProfile, Module, Lesson, LiveSession
   Notifications/        # PaymentSucceeded (email, queued)
-  Policies/             # CoursePolicy, ModulePolicy, LessonPolicy, OrderPolicy, EnrollmentPolicy (berikutnya: Submission)
+  Policies/             # CoursePolicy (+ manageClass), ModulePolicy, LessonPolicy (+ viewContent/complete), OrderPolicy,
+                        # EnrollmentPolicy (berikutnya: Submission)
+  Jobs/RecalculateCourseProgress.php   # hitung ulang progres saat lesson terbit/ditarik/dihapus (LessonObserver)
   Rules/VideoUrl.php    # validasi URL video lewat VideoProvider
   Services/Payment/     # PaymentGateway (interface), MidtransGateway (HTTP client), FakeGateway (lokal/test), MidtransPayload
   Services/Video/       # VideoProvider (interface) + YouTubeProvider (di-bind di AppServiceProvider)
@@ -73,7 +84,12 @@ resources/js/
   pages/public/         # home, courses/index, courses/show (layout: layouts/public-layout.tsx)
   pages/admin/          # dashboard, courses/{index,create,edit,curriculum}, users/index
   pages/instructor/     # dashboard, courses/{index,show}
-  pages/student/        # dashboard, courses/{index,learn}, orders/{index,show,invoice}
+  pages/student/        # dashboard, courses/index, orders/{index,show,invoice}
+  pages/learn/          # course (ikhtisar + progres), lesson (player)
+  pages/classes/        # batches, students, schedule (instruktur/admin)
+  pages/admin/courses/batches.tsx      # kelola batch
+  components/learn/     # lesson-outline, youtube-player (IFrame API, auto-selesai)
+  components/catalog/batch-picker.tsx  # pilih batch di halaman kursus & checkout
   pages/checkout/show.tsx   # ringkasan checkout (layout publik)
   pages/admin/orders/   # index, show
   components/admin/     # course-form, status/instructor cards, rich-text-editor (TipTap), curriculum/* (dnd-kit)
@@ -93,7 +109,9 @@ docs/                   # rancangan (jangan diformat ulang); docs/screenshots/ u
   `video_ref` ada di `#[Hidden]` model `Lesson`; jangan kirim model `Lesson` mentah ke Inertia.
     - Halaman publik (`PublicCurriculum`): hanya lesson **published** di modul yang tidak terhapus; data video (`preview.embed_url`)
       **hanya** untuk lesson `is_preview = true`. Test: `tests/Feature/Catalog/CourseCurriculumTest.php`.
-    - Mulai Fase 4: ID/embed hanya dikirim untuk lesson yang **sudah terbuka** bagi siswa tersebut (`ComputeLessonAccess`).
+    - Player (`LearnController`): embed video, `summary_html`, dan `meeting_url` hanya dikirim untuk lesson yang **sudah
+      terbuka** bagi siswa tersebut (`LessonPolicy::viewContent` → `ComputeLessonAccess`). Lesson terkunci hanya mengirim
+      judul + tanggal buka. Test: `tests/Feature/Learning/LearnPlayerTest.php`.
     - `CurriculumLessonResource` (berisi `video_url`) hanya untuk layar staf (admin/instruktur yang ditugaskan).
 - **Rich text** (`lessons.summary_html`) selalu disaring di server dengan `HtmlSanitizer` sebelum disimpan (allowlist di
   `config/purify.php` profil `rich_text`: tanpa script, event handler, style, iframe, gambar). Frontend merender HTML yang
@@ -131,6 +149,23 @@ Role dan permission didefinisikan di enum `App\Enums\Role` dan `App\Enums\Permis
   pengguna (`/admin/pengguna`) dikunci `permission:users.manage`, plus Policy per aksi. **Staf tidak boleh mengubah konten
   kursus** (403). Instruktur hanya membaca kursus yang ditugaskan (`/instruktur/kursus`, kursus lain = 404).
 - Menu sidebar dibentuk dari `auth.roles`/`auth.permissions` (shared props) di `useMainNavItems` — hanya UI.
+
+## Batch, drip & progres (Fase 4)
+
+- Kursus `drip_enabled` dijalankan per **batch** (`batches`: starts_on = Hari ke-1, ends_on, registration_closes_on,
+  capacity, is_published, soft delete). Kursus drip butuh ≥ 1 batch terbit untuk diterbitkan (`PublishCourse`).
+- Checkout/ambil gratis kursus drip wajib `batch_id`; `ResolveEnrollmentBatch` (lockForUpdate) menolak batch yang tidak
+  terbit, selesai, pendaftaran tutup, atau penuh. Batch disimpan di `order_items.batch_id` lalu `enrollments.batch_id`.
+  Pembayaran sukses **tidak pernah ditolak** karena batch penuh (dicatat di log, admin melihat "Melebihi kuota").
+- `ComputeLessonAccess` adalah satu-satunya sumber kebenaran akses lesson. Prioritas: non-drip (terbuka semua) / preview >
+  override per siswa > override batch > default `starts_on + drip_day_offset` pukul `LESSON_UNLOCK_TIME` (Asia/Jakarta).
+  Pakai `forEnrollment()` untuk banyak lesson (satu query override). Kursus archived tetap bisa dipelajari, draft tidak.
+- **Lesson yang sudah terbuka tidak pernah terkunci kembali** (`SetLessonUnlockOverride` menolak, termasuk saat reset).
+  `lesson_unlock_overrides.scope_key` (= enrollment_id ?? 0) diisi model untuk unique NULL-safe.
+- Progres: `MarkLessonCompleted`/`UnmarkLessonCompleted` → `RecalculateEnrollmentProgress` (floor, hanya lesson published).
+  Progres 100% **tidak** menyelesaikan enrollment (Fase 6). Akses kedaluwarsa kursus drip dihitung dari akhir batch.
+- `/kelas` hanya untuk instruktur yang ditugaskan dan admin (`CoursePolicy::manageClass`, selain itu 404); staf tidak.
+  Pindah batch hanya admin (`MoveEnrollmentToBatch`, dicatat di log).
 
 ## Alur pembayaran (Fase 3)
 

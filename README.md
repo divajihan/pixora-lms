@@ -6,9 +6,10 @@ mengumpulkan tugas, dan mendapat sertifikat otomatis.
 
 Rancangan lengkap (arsitektur, ERD, aturan bisnis, roadmap): [docs/arsitektur-erd.md](docs/arsitektur-erd.md).
 
-> Status: **Fase 3** selesai — pembelian kursus (checkout, Midtrans Snap sandbox, webhook idempoten, enrollment),
-> kursus gratis, riwayat pesanan & invoice, "Kursus saya" siswa, panel pesanan admin/staf, dan scheduler kedaluwarsa.
-> Berikutnya: Fase 4 (player lesson, drip, progres).
+> Status: **Fase 4** selesai — batch (angkatan) per kursus drip, pilihan batch saat checkout, player lesson
+> (`/belajar`), drip per batch dengan override instruktur per batch/siswa (`/kelas`), dan progres belajar.
+> Fase 3 (checkout, Midtrans Snap sandbox, webhook idempoten, enrollment, pesanan) sudah selesai.
+> Berikutnya: Fase 5 (tugas, submission, feedback).
 
 ## Stack
 
@@ -89,6 +90,7 @@ Akun dev dari `php artisan migrate --seed` (hanya `local`/`testing`, emailnya su
 | staff      | `staff@pixora.test`      | `password`                                           |
 | instructor | `instructor@pixora.test` | `password`                                           |
 | student    | `student@pixora.test`    | `password`                                           |
+| student    | `siswa1..8@pixora.test`  | `password` (siswa demo di batch kursus drip)         |
 
 Email admin bisa diubah lewat `SEED_ADMIN_EMAIL`. Di production, jalankan hanya `php artisan db:seed --class=RoleSeeder --force`.
 
@@ -101,6 +103,11 @@ Catatan:
   (`QUEUE_CONNECTION=redis`), jadi worker harus jalan (`composer dev` sudah menjalankan `queue:listen`).
 - Pembayaran lokal default memakai **gateway simulasi** (`PAYMENT_GATEWAY=fake`): di halaman pesanan muncul tombol
   "Bayar berhasil / Pending / Ditolak / Kedaluwarsa" yang mengirim notifikasi bertanda tangan ke webhook — tanpa key.
+- Data demo Fase 4 dibuat relatif terhadap hari ini: setiap kursus drip punya 3 batch (selesai, berjalan, akan datang);
+  `student@pixora.test` ikut batch berjalan "Dasar Desain Grafis untuk Pemula" (dengan 1 override batch + 1 override
+  khusus siswa) dan kursus gratis non-drip. Instruktur `instructor@pixora.test` mengelola kelasnya di **Kursus saya →
+  Kelola kelas**.
+- Jam buka lesson drip: `LESSON_UNLOCK_TIME` (default `00:00`, zona `Asia/Jakarta`); offset 0 = tanggal mulai batch.
 - Scheduler (order & enrollment kedaluwarsa): di server tambahkan cron `* * * * * php artisan schedule:run`;
   di lokal jalankan `php artisan schedule:work` bila perlu.
 
