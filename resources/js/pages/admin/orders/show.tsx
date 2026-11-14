@@ -25,7 +25,7 @@ import {
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
 import { Textarea } from '@/components/ui/textarea';
-import { formatDateTime, formatRupiah } from '@/lib/format';
+import { formatDateTime, formatDateRange, formatRupiah } from '@/lib/format';
 import { dashboard } from '@/routes/admin';
 import {
     index as ordersIndex,
@@ -194,7 +194,18 @@ export default function AdminOrderShow({ order, can, gateway }: Props) {
                                     key={item.id}
                                     className="flex justify-between gap-4"
                                 >
-                                    <span>{item.title}</span>
+                                    <span>
+                                        {item.title}
+                                        {item.batch && (
+                                            <span className="block text-xs text-muted-foreground">
+                                                {item.batch.name} ·{' '}
+                                                {formatDateRange(
+                                                    item.batch.starts_on,
+                                                    item.batch.ends_on,
+                                                )}
+                                            </span>
+                                        )}
+                                    </span>
                                     <span className="shrink-0">
                                         {formatRupiah(item.price)}
                                     </span>

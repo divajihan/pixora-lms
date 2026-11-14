@@ -7,7 +7,8 @@ import { Button } from '@/components/ui/button';
 import { formatDate } from '@/lib/format';
 import { index as catalog, show as courseShow } from '@/routes/courses';
 import { dashboard } from '@/routes/student';
-import { index as myCourses, learn } from '@/routes/student/courses';
+import { course as learn } from '@/routes/learn';
+import { index as myCourses } from '@/routes/student/courses';
 
 type EnrollmentItem = {
     id: number;
@@ -17,6 +18,7 @@ type EnrollmentItem = {
     enrolled_at: string;
     expires_at: string | null;
     progress_percent: number;
+    batch: string | null;
     course: {
         title: string;
         slug: string;
@@ -81,10 +83,29 @@ export default function StudentCourses({
                                         {enrollment.course.title}
                                     </p>
                                     <p className="text-xs text-muted-foreground">
+                                        {enrollment.batch &&
+                                            `${enrollment.batch} · `}
                                         {enrollment.expires_at
                                             ? `Akses hingga ${formatDate(enrollment.expires_at)}`
                                             : 'Akses seumur hidup'}
                                     </p>
+                                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                        <div
+                                            className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted"
+                                            aria-hidden
+                                        >
+                                            <div
+                                                className="h-full rounded-full bg-primary"
+                                                style={{
+                                                    width: `${enrollment.progress_percent}%`,
+                                                }}
+                                            />
+                                        </div>
+                                        <span>
+                                            {enrollment.progress_percent}%
+                                            selesai
+                                        </span>
+                                    </div>
                                     <Button
                                         asChild
                                         size="sm"

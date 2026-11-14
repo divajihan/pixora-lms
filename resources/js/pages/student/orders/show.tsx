@@ -21,8 +21,8 @@ import {
 } from '@/components/ui/card';
 import { Spinner } from '@/components/ui/spinner';
 import { useSnap } from '@/hooks/use-snap';
-import { formatDateTime, formatRupiah } from '@/lib/format';
-import { learn } from '@/routes/student/courses';
+import { formatDateTime, formatDateRange, formatRupiah } from '@/lib/format';
+import { course as learn } from '@/routes/learn';
 import { dashboard } from '@/routes/student';
 import {
     index as ordersIndex,
@@ -178,7 +178,18 @@ export default function StudentOrderShow({ order, payment, autoPay }: Props) {
                                 key={item.id}
                                 className="flex items-start justify-between gap-4"
                             >
-                                <span>{item.title}</span>
+                                <span>
+                                    {item.title}
+                                    {item.batch && (
+                                        <span className="block text-xs text-muted-foreground">
+                                            {item.batch.name} ·{' '}
+                                            {formatDateRange(
+                                                item.batch.starts_on,
+                                                item.batch.ends_on,
+                                            )}
+                                        </span>
+                                    )}
+                                </span>
                                 <span className="shrink-0">
                                     {formatRupiah(item.price)}
                                 </span>

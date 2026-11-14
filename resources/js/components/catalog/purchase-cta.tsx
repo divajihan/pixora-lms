@@ -1,5 +1,7 @@
 import { Form, Link, usePage } from '@inertiajs/react';
 import { Clock, PlayCircle } from 'lucide-react';
+import { useState } from 'react';
+import { BatchPicker } from '@/components/catalog/batch-picker';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
@@ -9,7 +11,8 @@ import type { PurchaseInfo } from '@/types/orders';
 
 /**
  * Call-to-action on the course page. The state is computed on the server
- * (PurchaseState); buying always goes through server-side checkout.
+ * (PurchaseState); buying always goes through server-side checkout, which
+ * re-validates the chosen batch.
  */
 export function PurchaseCta({
     purchase,
@@ -19,6 +22,15 @@ export function PurchaseCta({
     slug: string;
 }) {
     const { auth } = usePage().props;
+    const needsBatch = purchase.batches.length > 0 || purchase.requires_batch;
+    const firstOpen =
+        purchase.batches.find((batch) => batch.is_open)?.id ?? null;
+    const [batchId, setBatchId] = useState<number | null>(firstOpen);
+
+    const checkoutUrl = batchId
+        ? `${purchase.checkout_url}?batch=${batchId}`
+        : purchase.checkout_url;
+    const blocked = needsBatch && batchId === null;
 
     switch (purchase.state) {
         case 'enrolled':
@@ -63,37 +75,63 @@ export function PurchaseCta({
                 </div>
             );
 
-        case 'free':
-            // Signed-in students enroll right here; guests go to login first (via checkout).
-            return auth.user ? (
-                <Form {...free.form(slug)} className="flex flex-col gap-2">
-                    {({ processing, errors }) => (
-                        <>
-                            <Button
-                                type="submit"
-                                size="lg"
-                                disabled={processing}
-                            >
-                                {processing && <Spinner />}
-                                Ambil gratis
-                            </Button>
-                            <InputError message={errors.course} />
-                        </>
-                    )}
-                </Form>
-            ) : (
-                <Button asChild size="lg">
-                    <Link href={purchase.checkout_url}>Ambil gratis</Link>
-                </Button>
-            );
-
         default:
             return (
-                <Button asChild size="lg">
-                    <Link href={purchase.checkout_url}>
-                        Beli {formatRupiah(purchase.price)}
-                    </Link>
-                </Button>
+                <div className="flex flex-col gap-3">
+                    {needsBatch && (
+                        <BatchPicker
+                            batches={purchase.batches}
+                            value={batchId}
+                            onChange={setBatchId}
+                        />
+                    )}
+
+                    {purchase.state === 'free' && auth.user ? (
+                        <Form
+                            {...free.form(slug)}
+                            className="flex flex-col gap-2"
+                        >
+                            {({ processing, errors }) => (
+                                <>
+                                    {batchId && (
+                                        <input
+                                            type="hidden"
+                                            name="batch_id"
+                                            value={batchId}
+                                        />
+                                    )}
+                                    <Button
+                                        type="submit"
+                                        size="lg"
+                                        disabled={processing || blocked}
+                                    >
+                                        {processing && <Spinner />}
+                                        Ambil gratis
+                                    </Button>
+                                    <InputError
+                                        message={
+                                            errors.course ?? errors.batch_id
+                                        }
+                                    />
+                                </>
+                            )}
+                        </Form>
+                    ) : blocked ? (
+                        <Button size="lg" disabled>
+                            {purchase.is_free
+                                ? 'Ambil gratis'
+                                : `Beli ${formatRupiah(purchase.price)}`}
+                        </Button>
+                    ) : (
+                        <Button asChild size="lg">
+                            <Link href={checkoutUrl}>
+                                {purchase.is_free
+                                    ? 'Ambil gratis'
+                                    : `Beli ${formatRupiah(purchase.price)}`}
+                            </Link>
+                        </Button>
+                    )}
+                </div>
             );
     }
 }

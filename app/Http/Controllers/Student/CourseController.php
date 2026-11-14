@@ -20,7 +20,7 @@ class CourseController extends Controller
         $user = $request->user();
 
         $enrollments = $user->enrollments()
-            ->with('course:id,title,slug,thumbnail_path,category_id', 'course.category:id,name')
+            ->with('course:id,title,slug,thumbnail_path,category_id', 'course.category:id,name', 'batch:id,name')
             ->latest('enrolled_at')
             ->get()
             ->map(fn (Enrollment $enrollment) => [
@@ -31,6 +31,7 @@ class CourseController extends Controller
                 'enrolled_at' => $enrollment->enrolled_at->toIso8601String(),
                 'expires_at' => $enrollment->expires_at?->toIso8601String(),
                 'progress_percent' => $enrollment->progress_percent,
+                'batch' => $enrollment->batch?->name,
                 'course' => [
                     'title' => $enrollment->course->title,
                     'slug' => $enrollment->course->slug,

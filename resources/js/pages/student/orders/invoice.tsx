@@ -1,7 +1,7 @@
 import { Head } from '@inertiajs/react';
 import { Printer } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { formatDate, formatRupiah } from '@/lib/format';
+import { formatDate, formatDateRange, formatRupiah } from '@/lib/format';
 import type { OrderData } from '@/types/orders';
 
 type Props = {
@@ -108,6 +108,15 @@ export default function OrderInvoice({ order, seller }: Props) {
                                 <tr key={item.id} className="border-b">
                                     <td className="py-3">
                                         Kursus online: {item.title}
+                                        {item.batch && (
+                                            <span className="block text-xs text-muted-foreground">
+                                                {item.batch.name} ·{' '}
+                                                {formatDateRange(
+                                                    item.batch.starts_on,
+                                                    item.batch.ends_on,
+                                                )}
+                                            </span>
+                                        )}
                                     </td>
                                     <td className="py-3 text-right">
                                         {formatRupiah(item.price)}

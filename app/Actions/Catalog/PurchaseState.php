@@ -22,7 +22,8 @@ class PurchaseState
      *     checkout_url: string,
      *     learn_url: string|null,
      *     order_url: string|null,
-     *     batches: array<int, array<string, mixed>>
+     *     batches: array<int, array<string, mixed>>,
+     *     requires_batch: bool
      * }
      */
     public function handle(?User $user, Course $course): array
@@ -34,6 +35,7 @@ class PurchaseState
             'learn_url' => null,
             'order_url' => null,
             'batches' => $this->batches($course),
+            'requires_batch' => (bool) $course->drip_enabled,
         ];
 
         // Guests see buy/free; the checkout route sends them to login and back.

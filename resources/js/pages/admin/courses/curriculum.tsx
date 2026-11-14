@@ -22,6 +22,7 @@ import {
     Save,
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
+import { CourseTabs } from '@/components/admin/course-tabs';
 import { ConfirmDialog } from '@/components/admin/confirm-dialog';
 import {
     findModuleIndexOfLesson,
@@ -283,6 +284,12 @@ export default function AdminCurriculum({
                         </Button>
                     </div>
                 </div>
+
+                <CourseTabs
+                    courseId={course.id}
+                    active="curriculum"
+                    dripEnabled={course.drip_enabled}
+                />
 
                 <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                     {[

@@ -1,5 +1,7 @@
 import { Form, Link } from '@inertiajs/react';
+import { useState } from 'react';
 import { Clock, Lock, ShieldCheck } from 'lucide-react';
+import { BatchPicker } from '@/components/catalog/batch-picker';
 import { CoursePrice } from '@/components/catalog/course-price';
 import { CourseThumbnail } from '@/components/catalog/course-thumbnail';
 import InputError from '@/components/input-error';
@@ -11,6 +13,7 @@ import { Spinner } from '@/components/ui/spinner';
 import { formatRupiah } from '@/lib/format';
 import { free, store } from '@/routes/checkout';
 import { show as courseShow } from '@/routes/courses';
+import type { BatchOption } from '@/types/learning';
 
 type Props = {
     course: {
@@ -25,9 +28,24 @@ type Props = {
     };
     buyer: { name: string; email: string };
     expiryHours: number;
+    batches: BatchOption[];
+    selectedBatchId: number | null;
 };
 
-export default function CheckoutShow({ course, buyer, expiryHours }: Props) {
+export default function CheckoutShow({
+    course,
+    buyer,
+    expiryHours,
+    batches,
+    selectedBatchId,
+}: Props) {
+    const preselected =
+        batches.find((batch) => batch.id === selectedBatchId && batch.is_open)
+            ?.id ??
+        batches.find((batch) => batch.is_open)?.id ??
+        null;
+    const [batchId, setBatchId] = useState<number | null>(preselected);
+    const needsBatch = batches.length > 0;
     return (
         <>
             <SeoHead
@@ -111,10 +129,22 @@ export default function CheckoutShow({ course, buyer, expiryHours }: Props) {
                         >
                             {({ processing, errors }) => (
                                 <>
+                                    {needsBatch && (
+                                        <BatchPicker
+                                            batches={batches}
+                                            value={batchId}
+                                            onChange={setBatchId}
+                                            name="batch_id"
+                                        />
+                                    )}
+                                    <InputError message={errors.batch_id} />
                                     <Button
                                         type="submit"
                                         size="lg"
-                                        disabled={processing}
+                                        disabled={
+                                            processing ||
+                                            (needsBatch && batchId === null)
+                                        }
                                     >
                                         {processing && <Spinner />}
                                         {course.is_free
