@@ -160,7 +160,8 @@ Role dan permission didefinisikan di enum `App\Enums\Role` dan `App\Enums\Permis
 - `ComputeLessonAccess` adalah satu-satunya sumber kebenaran akses lesson. Prioritas: non-drip (terbuka semua) / preview >
   override per siswa > override batch > default `starts_on + drip_day_offset` pukul `LESSON_UNLOCK_TIME` (Asia/Jakarta).
   Pakai `forEnrollment()` untuk banyak lesson (satu query override). Kursus archived tetap bisa dipelajari, draft tidak.
-- **Lesson yang sudah terbuka tidak pernah terkunci kembali** (`SetLessonUnlockOverride` menolak, termasuk saat reset).
+- **Lesson yang sudah terbuka tidak pernah terkunci kembali** (`SetLessonUnlockOverride` menolak, termasuk saat reset;
+  `SaveLesson` menolak memundurkan `drip_day_offset` lesson yang sudah terbuka di batch yang punya siswa).
   `lesson_unlock_overrides.scope_key` (= enrollment_id ?? 0) diisi model untuk unique NULL-safe.
 - Progres: `MarkLessonCompleted`/`UnmarkLessonCompleted` → `RecalculateEnrollmentProgress` (floor, hanya lesson published).
   Progres 100% **tidak** menyelesaikan enrollment (Fase 6). Akses kedaluwarsa kursus drip dihitung dari akhir batch.

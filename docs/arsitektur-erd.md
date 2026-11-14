@@ -421,6 +421,8 @@ Semua tabel memakai `id` bigint unsigned auto-increment, `created_at`, `updated_
 - Kursus drip baru bisa diterbitkan jika punya minimal 1 batch terbit. Pendaftaran batch terbuka jika batch terbit, hari ini
   ≤ `ends_on` dan ≤ `registration_closes_on`, serta kuota belum penuh.
 - Lesson yang sudah terbuka tidak pernah terkunci kembali; jadwal lesson berikutnya tidak bergantung pada tugas.
+  Karena itu `drip_day_offset` lesson published tidak bisa dimundurkan bila lesson itu sudah terbuka menurut jadwal
+  default di batch (yang sudah dimulai dan punya siswa) dan akan terkunci lagi dengan offset baru (`SaveLesson`).
 
 **Keamanan:**
 - Semua pengecekan akses dilakukan di server (Policy + `ComputeLessonAccess`), bukan hanya disembunyikan di UI.

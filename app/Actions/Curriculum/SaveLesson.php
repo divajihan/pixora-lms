@@ -2,19 +2,24 @@
 
 namespace App\Actions\Curriculum;
 
+use App\Enums\LessonStatus;
 use App\Enums\LessonType;
+use App\Models\Batch;
 use App\Models\Lesson;
 use App\Models\Module;
 use App\Services\Video\VideoProvider;
 use App\Support\HtmlSanitizer;
 use App\Support\UniqueSlug;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 /**
  * Creates or updates a lesson (and its live session) from validated data.
  * - video URL → provider id only (video_ref + video_provider);
  * - summary_html is sanitised before saving;
- * - the slug is generated once (unique per course) and kept stable.
+ * - the slug is generated once (unique per course) and kept stable;
+ * - a published lesson's drip day cannot move later if that would re-lock it
+ *   in a batch with students (opened lessons never lock again).
  */
 class SaveLesson
 {
@@ -31,6 +36,10 @@ class SaveLesson
         return DB::transaction(function () use ($module, $lesson, $data): Lesson {
             $type = LessonType::from((string) $data['type']);
             $isVideo = $type === LessonType::Video;
+
+            if ($lesson !== null) {
+                $this->guardOffsetChange($lesson, (int) $data['drip_day_offset']);
+            }
 
             $lesson ??= new Lesson([
                 'course_id' => $module->course_id,
@@ -65,6 +74,39 @@ class SaveLesson
 
             return $lesson;
         });
+    }
+
+    /**
+     * Rejects a later drip_day_offset when the lesson is already open on its
+     * default schedule in a batch that has students but would be locked again
+     * under the new offset. Moving it earlier is always allowed.
+     */
+    private function guardOffsetChange(Lesson $lesson, int $newOffset): void
+    {
+        if ($newOffset <= $lesson->drip_day_offset
+            || $lesson->status !== LessonStatus::Published
+            || ! $lesson->course()->where('drip_enabled', true)->exists()) {
+            return;
+        }
+
+        $now = now();
+
+        $relocked = Batch::query()
+            ->where('course_id', $lesson->course_id)
+            ->whereHas('enrollments')
+            ->where('starts_on', '<=', $now->toDateString())
+            ->orderBy('starts_on')
+            ->get()
+            ->filter(fn (Batch $batch) => $batch->dayStart($lesson->drip_day_offset)->lte($now)
+                && $batch->dayStart($newOffset)->gt($now));
+
+        if ($relocked->isNotEmpty()) {
+            throw ValidationException::withMessages([
+                'drip_day_offset' => 'Lesson ini sudah terbuka untuk siswa di '.$relocked->pluck('name')->join(', ', ' dan ')
+                    .'. Hari buka tidak bisa dimundurkan karena lesson akan terkunci lagi. Lesson yang sudah terbuka tetap terbuka; '
+                    .'atur jadwal batch mendatang lewat Kelola kelas bila perlu.',
+            ]);
+        }
     }
 
     private function slug(int $courseId, string $title): string
