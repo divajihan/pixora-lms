@@ -6,9 +6,9 @@ mengumpulkan tugas, dan mendapat sertifikat otomatis.
 
 Rancangan lengkap (arsitektur, ERD, aturan bisnis, roadmap): [docs/arsitektur-erd.md](docs/arsitektur-erd.md).
 
-> Status: **Fase 2** selesai — panel admin konten (kursus, kurikulum drag & drop, lesson video YouTube/live, status
-> terbit, penugasan instruktur), halaman Pengguna, "Kursus saya" untuk instruktur (baca saja), dan kurikulum + video
-> pratinjau di halaman publik. Berikutnya: Fase 3 (order, Midtrans, enrollment).
+> Status: **Fase 3** selesai — pembelian kursus (checkout, Midtrans Snap sandbox, webhook idempoten, enrollment),
+> kursus gratis, riwayat pesanan & invoice, "Kursus saya" siswa, panel pesanan admin/staf, dan scheduler kedaluwarsa.
+> Berikutnya: Fase 4 (player lesson, drip, progres).
 
 ## Stack
 
@@ -76,6 +76,10 @@ Buka http://localhost:8000.
 | Kurikulum kursus     | `/admin/kursus/{id}/kurikulum` | Permission `courses.manage` (admin)      |
 | Pengguna             | `/admin/pengguna`              | Permission `users.manage` (admin)        |
 | Kursus saya          | `/instruktur/kursus`           | Role `instructor`, hanya kursus miliknya |
+| Checkout             | `/kursus/{slug}/checkout`      | Siswa (login + email terverifikasi)      |
+| Kursus saya (siswa)  | `/siswa/kursus`                | Role `student`                           |
+| Pesanan & invoice    | `/siswa/pesanan`               | Role `student`, hanya miliknya           |
+| Pesanan (admin)      | `/admin/pesanan`               | Permission `orders.manage` (admin, staf) |
 
 Akun dev dari `php artisan migrate --seed` (hanya `local`/`testing`, emailnya sudah terverifikasi):
 
@@ -93,23 +97,65 @@ Catatan:
 - Port MySQL host default **3306**. Jika port itu sudah dipakai (mis. MySQL lain), ubah `FORWARD_DB_PORT` dan `DB_PORT` di `.env` (contoh: 3307).
 - Kredensial di `.env.example` dan `docker-compose.yml` hanya untuk pengembangan lokal.
 - Locale aplikasi `id`, zona waktu `Asia/Jakarta`.
-- Email dikirim ke log (`MAIL_MAILER=log`) di lokal: cek `storage/logs/laravel.log`.
+- Email dikirim ke log (`MAIL_MAILER=log`) di lokal: cek `storage/logs/laravel.log`. Email dikirim lewat queue
+  (`QUEUE_CONNECTION=redis`), jadi worker harus jalan (`composer dev` sudah menjalankan `queue:listen`).
+- Pembayaran lokal default memakai **gateway simulasi** (`PAYMENT_GATEWAY=fake`): di halaman pesanan muncul tombol
+  "Bayar berhasil / Pending / Ditolak / Kedaluwarsa" yang mengirim notifikasi bertanda tangan ke webhook — tanpa key.
+- Scheduler (order & enrollment kedaluwarsa): di server tambahkan cron `* * * * * php artisan schedule:run`;
+  di lokal jalankan `php artisan schedule:work` bila perlu.
+
+## Setup Midtrans sandbox
+
+1. **Akun & key.** Daftar di [dashboard.sandbox.midtrans.com](https://dashboard.sandbox.midtrans.com), buka
+   _Settings → Access Keys_, lalu isi `.env` (jangan pernah commit key):
+
+    ```dotenv
+    PAYMENT_GATEWAY=midtrans
+    MIDTRANS_SERVER_KEY=SB-Mid-server-xxxxxxxx
+    MIDTRANS_CLIENT_KEY=SB-Mid-client-xxxxxxxx
+    MIDTRANS_IS_PRODUCTION=false
+    ```
+
+    Lalu `php artisan config:clear`.
+
+2. **Tunnel lokal.** Midtrans harus bisa menjangkau webhook Anda. Jalankan aplikasi (`composer dev`) lalu buka tunnel
+   ke port 8000, misalnya `cloudflared tunnel --url http://localhost:8000` atau `ngrok http 8000`. Catat URL HTTPS-nya.
+   Set juga `APP_URL` ke URL tunnel agar URL callback/email benar.
+
+3. **Payment Notification URL.** Di dashboard sandbox: _Settings → Payment (Configuration)_ → isi
+   **Payment Notification URL** = `https://<url-tunnel>/webhooks/midtrans`. (Finish/Unfinish/Error redirect URL boleh
+   dikosongkan — aplikasi mengirim URL kembali per transaksi dan **tidak** mempercayai redirect sebagai bukti bayar.)
+
+4. **Tes pembayaran.**
+    - Login sebagai `student@pixora.test`, buka kursus berbayar → **Beli** → **Lanjut ke pembayaran** → pop-up Snap.
+    - Pilih metode, mis. _BCA Virtual Account_, salin nomor VA, lalu bayar lewat
+      [simulator.sandbox.midtrans.com](https://simulator.sandbox.midtrans.com) (menu bank terkait).
+    - Kartu kredit uji: `4811 1111 1111 1114`, CVV `123`, kedaluwarsa bulan/tahun di masa depan, OTP `112233`.
+    - Dalam beberapa detik webhook masuk: status pesanan **Lunas**, kursus muncul di **Kursus saya**, email terkirim.
+    - Jika webhook terlambat, tombol **Cek status pembayaran** (siswa) atau **Cek status ke gateway** (admin) mengambil
+      status dari Status API Midtrans.
+
+5. **Mengecek webhook.** Riwayat ada di tabel `webhook_events` dan `payments`; penolakan (signature salah / nominal
+   tidak cocok) tercatat sebagai warning di `storage/logs/laravel.log` (hanya nomor order, tanpa payload/key).
 
 ## Perintah umum
 
-| Perintah                           | Keterangan                                                |
-| ---------------------------------- | --------------------------------------------------------- |
-| `composer dev`                     | Jalankan server, queue, log (pail), dan Vite              |
-| `php artisan test`                 | Jalankan test (Pest, SQLite in-memory)                    |
-| `vendor/bin/pint`                  | Format kode PHP (`--test` untuk cek saja)                 |
-| `vendor/bin/phpstan analyse`       | Analisis statis PHP (Larastan)                            |
-| `npm run lint`                     | Cek lint + format frontend (`npm run lint:fix` untuk fix) |
-| `npm run types:check`              | Type-check TypeScript                                     |
-| `npm run build`                    | Build aset produksi                                       |
-| `php artisan migrate`              | Jalankan migrasi database                                 |
-| `php artisan migrate:fresh --seed` | Reset database + data awal (local)                        |
-| `docker compose up -d`             | Nyalakan MySQL + Redis                                    |
-| `docker compose down`              | Matikan container (tambah `-v` untuk hapus data)          |
+| Perintah                               | Keterangan                                                                               |
+| -------------------------------------- | ---------------------------------------------------------------------------------------- |
+| `composer dev`                         | Jalankan server, queue, log (pail), dan Vite                                             |
+| `php artisan test`                     | Jalankan test (Pest, SQLite in-memory)                                                   |
+| `vendor/bin/pint`                      | Format kode PHP (`--test` untuk cek saja)                                                |
+| `vendor/bin/phpstan analyse`           | Analisis statis PHP (Larastan)                                                           |
+| `npm run lint`                         | Cek lint + format frontend (`npm run lint:fix` untuk fix)                                |
+| `npm run types:check`                  | Type-check TypeScript                                                                    |
+| `npm run build`                        | Build aset produksi                                                                      |
+| `php artisan migrate`                  | Jalankan migrasi database                                                                |
+| `php artisan migrate:fresh --seed`     | Reset database + data awal (local)                                                       |
+| `docker compose up -d`                 | Nyalakan MySQL + Redis                                                                   |
+| `docker compose down`                  | Matikan container (tambah `-v` untuk hapus data)                                         |
+| `php artisan orders:expire-pending`    | Tandai order pending yang lewat batas waktu sebagai kedaluwarsa (terjadwal tiap 5 menit) |
+| `php artisan enrollments:expire-ended` | Tandai enrollment yang lewat masa akses sebagai kedaluwarsa (terjadwal harian)           |
+| `php artisan schedule:work`            | Jalankan scheduler di lokal                                                              |
 
 ## Struktur folder (ringkas)
 
