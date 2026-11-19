@@ -24,6 +24,8 @@ class BatchResource extends JsonResource
             'starts_on' => $this->starts_on->toDateString(),
             'ends_on' => $this->ends_on->toDateString(),
             'registration_closes_on' => $this->registration_closes_on?->toDateString(),
+            'certificates_open_on' => $this->certificates_open_on?->toDateString(),
+            'certificates_open_at' => $this->certificatesOpenAt()->toIso8601String(),
             'capacity' => $this->capacity,
             'is_published' => $this->is_published,
             'status' => $this->status()->value,

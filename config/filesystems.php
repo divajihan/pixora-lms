@@ -42,6 +42,17 @@ return [
             'report' => false,
         ],
 
+        // Certificate PDFs. Private: served only by CertificateController
+        // (CertificatePolicy). Random file names.
+        'certificates' => [
+            'driver' => 'local',
+            'root' => storage_path('app/private/certificates'),
+            'serve' => false,
+            'visibility' => 'private',
+            'throw' => false,
+            'report' => false,
+        ],
+
         'local' => [
             'driver' => 'local',
             'root' => storage_path('app/private'),

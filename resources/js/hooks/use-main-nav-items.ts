@@ -1,5 +1,6 @@
 import { usePage } from '@inertiajs/react';
 import {
+    Award,
     BookOpen,
     ClipboardCheck,
     ClipboardList,
@@ -10,6 +11,7 @@ import {
     Users,
 } from 'lucide-react';
 import { dashboardFor } from '@/lib/roles';
+import { index as adminCertificates } from '@/routes/admin/certificates';
 import { index as adminCourses } from '@/routes/admin/courses';
 import { index as adminOrders } from '@/routes/admin/orders';
 import { index as adminUsers } from '@/routes/admin/users';
@@ -17,6 +19,7 @@ import { index as catalog } from '@/routes/courses';
 import { index as instructorCourses } from '@/routes/instructor/courses';
 import { index as submissionsIndex } from '@/routes/submissions';
 import { index as studentAssignments } from '@/routes/student/assignments';
+import { index as studentCertificates } from '@/routes/student/certificates';
 import { index as studentCourses } from '@/routes/student/courses';
 import { index as studentOrders } from '@/routes/student/orders';
 import type { NavItem } from '@/types';
@@ -49,6 +52,14 @@ export function useMainNavItems(): NavItem[] {
         });
     }
 
+    if (can('certificates.view') || can('certificates.manage')) {
+        items.push({
+            title: 'Sertifikat',
+            href: adminCertificates(),
+            icon: Award,
+        });
+    }
+
     if (can('users.manage')) {
         items.push({ title: 'Pengguna', href: adminUsers(), icon: Users });
     }
@@ -71,6 +82,11 @@ export function useMainNavItems(): NavItem[] {
             title: 'Tugas saya',
             href: studentAssignments(),
             icon: ClipboardList,
+        });
+        items.push({
+            title: 'Sertifikat saya',
+            href: studentCertificates(),
+            icon: Award,
         });
         items.push({ title: 'Pesanan', href: studentOrders(), icon: Receipt });
     }

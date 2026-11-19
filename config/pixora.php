@@ -66,6 +66,30 @@ return [
         'webp_quality' => 85,
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Certificates
+    |--------------------------------------------------------------------------
+    |
+    | Number: {number_prefix}-{year}-{000001} (running per year). The PDF is
+    | rendered from resources/views/certificates/default.blade.php onto the
+    | private disk. "defaults" are used until an admin saves the certificate
+    | settings (settings table, /admin/pengaturan/sertifikat).
+    |
+    */
+
+    'certificates' => [
+        'disk' => env('CERTIFICATE_DISK', 'certificates'),
+        'number_prefix' => env('CERTIFICATE_NUMBER_PREFIX', 'PXR-CERT'),
+        'defaults' => [
+            'institution_name' => env('APP_NAME', 'Pixora'),
+            'title' => 'Sertifikat Kelulusan',
+            'statement' => 'telah menyelesaikan kursus',
+            'signer_name' => 'Tim Pixora',
+            'signer_title' => 'Direktur Akademik',
+        ],
+    ],
+
     'payments' => [
         'gateway' => env('PAYMENT_GATEWAY', 'fake'),
         'order_expiry_hours' => (int) env('ORDER_EXPIRY_HOURS', 24),

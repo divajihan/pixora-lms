@@ -1,6 +1,7 @@
 import { Head, Link } from '@inertiajs/react';
 import { CalendarDays, PlayCircle, Trophy } from 'lucide-react';
 import { EmptyState } from '@/components/admin/empty-state';
+import { CertificateCard } from '@/components/certificates/certificate-card';
 import { LessonOutline } from '@/components/learn/lesson-outline';
 import { Button } from '@/components/ui/button';
 import { formatDate, formatDateRange } from '@/lib/format';
@@ -11,6 +12,7 @@ import {
 } from '@/routes/learn';
 import { dashboard } from '@/routes/student';
 import { index as myCourses } from '@/routes/student/courses';
+import type { CertificateCard as CertificateCardData } from '@/types/certificates';
 import type {
     LearnCourse,
     LearnEnrollment,
@@ -24,6 +26,7 @@ type Props = {
     counts: { total: number; completed: number; unlocked: number };
     continueSlug: string | null;
     finalProject: { title: string; opens_at: string | null } | null;
+    certificate: CertificateCardData | null;
 };
 
 export default function LearnCourse({
@@ -33,6 +36,7 @@ export default function LearnCourse({
     counts,
     continueSlug,
     finalProject,
+    certificate,
 }: Props) {
     const nextLocked = modules
         .flatMap((module) => module.lessons)
@@ -169,6 +173,13 @@ export default function LearnCourse({
                             </Button>
                         )}
                     </section>
+                )}
+
+                {certificate && (
+                    <CertificateCard
+                        courseSlug={course.slug}
+                        data={certificate}
+                    />
                 )}
             </div>
         </>

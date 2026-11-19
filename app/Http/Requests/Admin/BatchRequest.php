@@ -21,6 +21,7 @@ class BatchRequest extends FormRequest
         $this->merge([
             'is_published' => filter_var($this->input('is_published', false), FILTER_VALIDATE_BOOLEAN),
             'registration_closes_on' => $this->filled('registration_closes_on') ? $this->input('registration_closes_on') : null,
+            'certificates_open_on' => $this->filled('certificates_open_on') ? $this->input('certificates_open_on') : null,
             'capacity' => $this->filled('capacity') ? $this->input('capacity') : null,
         ]);
     }
@@ -35,6 +36,7 @@ class BatchRequest extends FormRequest
             'starts_on' => ['required', 'date_format:Y-m-d'],
             'ends_on' => ['required', 'date_format:Y-m-d', 'after_or_equal:starts_on'],
             'registration_closes_on' => ['nullable', 'date_format:Y-m-d', 'before_or_equal:ends_on'],
+            'certificates_open_on' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:starts_on'],
             'capacity' => ['nullable', 'integer', 'min:1', 'max:100000'],
             'is_published' => ['boolean'],
         ];
@@ -50,6 +52,7 @@ class BatchRequest extends FormRequest
             'starts_on' => 'tanggal mulai',
             'ends_on' => 'tanggal selesai',
             'registration_closes_on' => 'tanggal tutup pendaftaran',
+            'certificates_open_on' => 'tanggal buka klaim sertifikat',
             'capacity' => 'kuota',
         ];
     }
@@ -61,6 +64,7 @@ class BatchRequest extends FormRequest
     {
         return [
             'ends_on.after_or_equal' => 'Tanggal selesai harus sama dengan atau setelah tanggal mulai.',
+            'certificates_open_on.after_or_equal' => 'Klaim sertifikat paling cepat dibuka pada tanggal mulai batch.',
             'registration_closes_on.before_or_equal' => 'Pendaftaran harus ditutup paling lambat pada tanggal selesai batch.',
         ];
     }

@@ -8,9 +8,11 @@ import { Head } from '@inertiajs/react';
 export function SeoHead({
     title,
     description,
+    noindex = false,
 }: {
     title?: string | null;
     description: string;
+    noindex?: boolean;
 }) {
     return (
         <Head title={title ?? undefined}>
@@ -19,6 +21,13 @@ export function SeoHead({
                 name="description"
                 content={description}
             />
+            {noindex && (
+                <meta
+                    head-key="robots"
+                    name="robots"
+                    content="noindex, nofollow"
+                />
+            )}
         </Head>
     );
 }

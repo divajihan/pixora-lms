@@ -38,7 +38,7 @@ class BatchController extends Controller
 
     public function store(BatchRequest $request, Course $course, SaveBatch $save): RedirectResponse
     {
-        /** @var array{name: string, starts_on: string, ends_on: string, registration_closes_on: string|null, capacity: int|string|null, is_published: bool} $data */
+        /** @var array{name: string, starts_on: string, ends_on: string, registration_closes_on: string|null, certificates_open_on: string|null, capacity: int|string|null, is_published: bool} $data */
         $data = $request->validated();
         $save->handle($course, null, $data);
 
@@ -49,7 +49,7 @@ class BatchController extends Controller
 
     public function update(BatchRequest $request, Batch $batch, SaveBatch $save): RedirectResponse
     {
-        /** @var array{name: string, starts_on: string, ends_on: string, registration_closes_on: string|null, capacity: int|string|null, is_published: bool} $data */
+        /** @var array{name: string, starts_on: string, ends_on: string, registration_closes_on: string|null, certificates_open_on: string|null, capacity: int|string|null, is_published: bool} $data */
         $data = $request->validated();
         $save->handle($batch->course, $batch, $data);
 

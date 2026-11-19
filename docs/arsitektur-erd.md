@@ -100,7 +100,7 @@ resources/js/Pages/   # Public, Student, Instructor, Admin
 | Siswa | Beli/ambil kursus, belajar lesson yang terbuka, kumpulkan tugas, unduh sertifikat sendiri |
 
 **Halaman utama:**
-- Publik: beranda, katalog, detail kursus, login/daftar, verifikasi sertifikat (`/verify/{kode}`).
+- Publik: beranda, katalog, detail kursus, login/daftar, verifikasi sertifikat (`/verifikasi/{kode}`).
 - Siswa: dashboard, kursus saya, player lesson, tugas saya, riwayat order, sertifikat.
 - Instruktur: kursus saya, daftar siswa, pengaturan pembukaan lesson, antrean tugas masuk, form feedback.
 - Admin/staf: CRUD kursus/modul/lesson, pengguna, order/pembayaran, laporan, pengaturan (branding, sertifikat).
@@ -167,9 +167,27 @@ menyelesaikan enrollment (kelulusan & sertifikat di fase berikutnya).
 7. Notifikasi feedback dikirim di Fase 7; di aplikasi, "Tugas saya" menampilkan lencana "Feedback baru"
    (`student_seen_feedback_at`).
 
-**E. Sertifikat**
-1. Setelah lesson terakhir selesai atau tugas wajib disetujui, sistem mengecek syarat kelulusan.
-2. Jika terpenuhi, job `IssueCertificate` membuat nomor dan kode verifikasi, membuat PDF, menyimpan ke `certificates`, dan menandai enrollment `completed`. Kolom `enrollment_id` yang unik mencegah sertifikat ganda meski job berjalan dua kali.
+**E. Sertifikat** (Fase 6: diklaim siswa, bukan otomatis)
+1. **Syarat** (`CheckCertificateEligibility`, satu sumber kebenaran untuk UI dan klaim): semua lesson `published` di modul
+   aktif selesai ("x dari y"); semua tugas `published` + `is_required` (proyek akhir atau di lesson terbit) sudah
+   dikumpulkan (tepat waktu atau terlambat); kursus drip: tanggal klaim tiba = `batches.certificates_open_on` atau
+   `ends_on + 1 hari`, pukul 00.00 WIB (non-drip tanpa syarat tanggal). Penghalang: `certificate_enabled = false`,
+   kursus draft/terhapus, enrollment `revoked`/`expired`/lewat `expires_at`.
+2. Ikhtisar belajar (`/belajar/{kursus}`) menampilkan kartu "Sertifikat": daftar syarat (centang/belum), tanggal buka, dan
+   tombol "Klaim sertifikat" yang aktif hanya saat layak. Dialog meminta konfirmasi **nama penerima** (default nama profil,
+   wajib berisi huruf, maks. 120) dengan peringatan bahwa nama tidak bisa diubah.
+3. `ClaimCertificate` (satu transaksi, `lockForUpdate` pada enrollment): sertifikat aktif yang sudah ada dikembalikan
+   (idempoten), kelayakan dicek ulang, nomor diambil dari `certificate_sequences` (baris tahun dikunci) →
+   `PXR-CERT-2026-000001`, kode verifikasi acak 12 karakter, snapshot nama/kursus/batch, enrollment → `completed`
+   (akses belajar tetap). `certificates.active_enrollment_id` unik menjamin satu sertifikat aktif per enrollment.
+4. Setelah commit, job `GenerateCertificatePdf` (3x percobaan, backoff) merender `resources/views/certificates/default.blade.php`
+   (Dompdf, A4 landscape, QR ke URL verifikasi) ke disk privat `certificates` dengan nama acak. Halaman melakukan polling
+   ringan sampai PDF siap. Unduh hanya lewat `CertificateController` + `CertificatePolicy`.
+5. Verifikasi publik `/verifikasi/{kode}`: nama penerima (snapshot), kursus, batch, tanggal terbit, nomor, status
+   valid/dicabut; tanpa email/telepon. Kode tidak dikenal → halaman "tidak ditemukan" (404). Throttle + `noindex`.
+6. Admin: cabut (alasan wajib; `active_enrollment_id` dikosongkan, enrollment kembali `active`, siswa bisa klaim ulang →
+   sertifikat & nomor baru), terbitkan manual (pengecualian; mencatat `issued_by` + alasan), buat ulang PDF. Lesson baru
+   setelah sertifikat terbit tidak membatalkannya.
 
 ## 5. Diagram ERD
 
@@ -207,7 +225,8 @@ erDiagram
   orders ||--o{ order_items : has
   courses ||--o{ order_items : sold_as
   orders ||--o{ payments : paid_by
-  enrollments ||--o| certificates : earns
+  enrollments ||--o{ certificates : earns
+  batches |o--o{ certificates : snapshot_of
 
   users {
     bigint id PK
@@ -280,6 +299,7 @@ erDiagram
     date starts_on
     date ends_on
     date registration_closes_on
+    date certificates_open_on
     int capacity
     boolean is_published
     datetime deleted_at
@@ -382,10 +402,23 @@ erDiagram
   certificates {
     bigint id PK
     bigint enrollment_id FK
+    bigint active_enrollment_id UK
+    bigint user_id FK
+    bigint course_id FK
+    bigint batch_id FK
     string certificate_number UK
     string verification_code UK
-    string pdf_path
+    string recipient_name
+    string course_title
+    string batch_name
     datetime issued_at
+    bigint issued_by FK
+    string issue_reason
+    string pdf_path
+    datetime pdf_generated_at
+    datetime revoked_at
+    bigint revoked_by FK
+    string revoke_reason
   }
 ```
 
@@ -414,7 +447,7 @@ Semua tabel memakai `id` bigint unsigned auto-increment, `created_at`, `updated_
 ### Akses dan progres
 | Tabel | Kolom penting | Catatan / indeks |
 |---|---|---|
-| `batches` | course_id, name, starts_on (Hari ke-1), ends_on, registration_closes_on (null = sampai ends_on), capacity (null = tak terbatas), is_published, deleted_at | Hanya untuk kursus drip. Status dihitung dari tanggal: `upcoming`/`running`/`finished`. Indeks (course_id, starts_on). Soft delete; batch yang punya siswa tidak bisa dihapus. `starts_on` tidak bisa diubah setelah batch dimulai; kuota tidak boleh di bawah jumlah siswa |
+| `batches` | course_id, name, starts_on (Hari ke-1), ends_on, registration_closes_on (null = sampai ends_on), certificates_open_on (null = ends_on + 1 hari; klaim dibuka 00.00 WIB), capacity (null = tak terbatas), is_published, deleted_at | Hanya untuk kursus drip. Status dihitung dari tanggal: `upcoming`/`running`/`finished`. Indeks (course_id, starts_on). Soft delete; batch yang punya siswa tidak bisa dihapus. `starts_on` tidak bisa diubah setelah batch dimulai; kuota tidak boleh di bawah jumlah siswa |
 | `enrollments` | user_id, course_id, order_id (null untuk gratis), batch_id (null untuk kursus non-drip), status (`active`/`completed`/`expired`/`revoked`), enrolled_at, expires_at, completed_at, progress_percent | Unik (user_id, course_id); indeks (course_id, status), (batch_id, status). FK batch `restrictOnDelete`. Kuota batch dihitung dari enrollment `active`/`completed` |
 | `lesson_unlock_overrides` | lesson_id, batch_id, enrollment_id (null = seluruh batch), scope_key, unlock_at, created_by | Tanpa `is_locked` (lesson terbuka tidak pernah dikunci ulang). Unik (lesson_id, batch_id, scope_key) dengan `scope_key = enrollment_id ?? 0` diisi oleh model (kolom generated tidak dipakai karena MySQL menolak FK cascade pada kolom dasarnya). Prioritas: per siswa > batch > default |
 | `lesson_progress` | enrollment_id, lesson_id, status (`in_progress`/`completed`), watched_seconds, completed_at | Unik (enrollment_id, lesson_id) |
@@ -439,8 +472,9 @@ Semua tabel memakai `id` bigint unsigned auto-increment, `created_at`, `updated_
 ### Sertifikat dan pengaturan
 | Tabel | Kolom penting | Catatan / indeks |
 |---|---|---|
-| `certificates` | enrollment_id (unik), certificate_number (unik), verification_code (unik), pdf_path, issued_at | Satu sertifikat per enrollment |
-| `settings` | key (unik), value (json) | Nama brand, logo, teks sertifikat, kontak |
+| `certificates` | enrollment_id, active_enrollment_id (unik, = enrollment_id selama aktif, null setelah dicabut), user_id, course_id, batch_id, certificate_number (unik, `PXR-CERT-YYYY-NNNNNN`), verification_code (unik, 12 karakter tanpa 0/O/1/I), recipient_name/course_title/batch_name (snapshot), issued_at, issued_by + issue_reason (terbit manual), pdf_path (disk privat, nama acak), pdf_generated_at, revoked_at, revoked_by, revoke_reason | Satu sertifikat **aktif** per enrollment; yang dicabut tetap ada (verifikasi "dicabut"). Indeks (course_id, issued_at), batch_id |
+| `certificate_sequences` | year (unik), last_number | Nomor berjalan per tahun; baris dikunci (`FOR UPDATE`) saat klaim sehingga nomor tidak ganda |
+| `settings` | key (unik), value (json) | Teks sertifikat: `certificate.institution_name`, `title`, `statement`, `signer_name`, `signer_title` (default di `config/pixora.php`, cache) |
 
 ## 7. Aturan bisnis penting, keamanan, dan ditunda ke tahap 2
 
@@ -448,8 +482,11 @@ Semua tabel memakai `id` bigint unsigned auto-increment, `created_at`, `updated_
 - Enrollment dibuat hanya setelah order `paid` (berbayar) atau langsung (gratis). Tidak ada enrollment ganda untuk user dan kursus yang sama.
 - Perubahan harga kursus tidak memengaruhi order lama (snapshot di `order_items`).
 - Lesson yang dihapus setelah ada progres sebaiknya diarsipkan (status `draft`), bukan dihapus, agar riwayat tidak rusak.
-- Kursus selesai jika semua lesson `published` yang wajib berstatus `completed` dan syarat tugas wajib terpenuhi (aturan pasti
-  ditentukan di Fase 6; `is_required` sudah disimpan). Tidak ada alur revisi/kirim ulang tugas.
+- Sertifikat (Fase 6): diklaim siswa setelah semua lesson `published` selesai, semua tugas wajib (`is_required`, published)
+  **dikumpulkan** (tidak harus direview; terlambat tetap dihitung), dan — kursus drip — tanggal klaim batch tiba
+  (`certificates_open_on` atau `ends_on + 1 hari`, 00.00 WIB). Klaim mengubah enrollment menjadi `completed` (akses belajar
+  tetap). Nama penerima di-snapshot dan tidak berubah. Cabut → siswa bisa klaim ulang dengan nomor baru. Sertifikat tidak
+  dibatalkan oleh lesson/tugas baru. Tidak ada alur revisi/kirim ulang tugas.
 - Tugas: satu pengumpulan per siswa; terlambat boleh dikumpulkan tetapi final dan tanpa feedback; feedback hanya setelah
   tenggat efektif; komentar instruktur pertama mengunci pengumpulan (`reviewed`).
 - Kedaluwarsa akses (`access_duration_days`) dihitung dari `enrolled_at` (kursus non-drip) atau dari akhir batch
@@ -471,7 +508,11 @@ Semua tabel memakai `id` bigint unsigned auto-increment, `created_at`, `updated_
   `Cache-Control: private`, `X-Content-Type-Options: nosniff`, dan `Content-Disposition: attachment` untuk "Unduh asli".
   File lama dihapus lewat job setelah commit. Rate limit untuk unggah dan komentar.
 - Webhook pembayaran: verifikasi signature, idempoten, dan hanya percaya data dari webhook (jangan dari redirect browser).
-- Rate limiting untuk login, daftar, dan unggah. Verifikasi email wajib sebelum beli.
+- Sertifikat: kelayakan dicek ulang di server saat klaim; PDF di disk privat (`serve: false`), hanya lewat
+  `CertificatePolicy` (pemilik — hanya sertifikat aktif, instruktur kursus, staf, admin) dengan `Cache-Control: private`
+  dan `nosniff`. Nama penerima selalu di-escape (Blade `{{ }}`, React). Halaman verifikasi tidak menampilkan data pribadi
+  selain yang tercetak, `noindex`, dan di-throttle; kode verifikasi acak ~60 bit.
+- Rate limiting untuk login, daftar, unggah, klaim sertifikat, dan verifikasi. Verifikasi email wajib sebelum beli.
 
 **Ditunda ke tahap 2:** kuis/ujian, diskusi per lesson, kupon dan bundle, integrasi API Zoom/Meet, notifikasi WhatsApp, laporan lanjutan, review/rating kursus.
 
@@ -496,7 +537,7 @@ Semua tabel memakai `id` bigint unsigned auto-increment, `created_at`, `updated_
 - **Scope creep.** Fitur tahap 2 baru dikerjakan setelah MVP diterima klien.
 
 **Pertanyaan terbuka untuk klien:**
-1. Syarat lulus sertifikat: semua lesson selesai saja, atau juga semua tugas wajib disetujui?
+1. ~~Syarat lulus sertifikat?~~ Diputuskan di Fase 6: semua lesson selesai + semua tugas wajib dikumpulkan + tanggal klaim batch.
 2. ~~Apakah lesson berikutnya menunggu tugas disetujui?~~ Diputuskan di Fase 4: tetap terbuka sesuai jadwal batch.
 3. Akses kursus seumur hidup atau ada batas waktu?
 4. Apakah refund diperlukan, dan bagaimana akses dicabut saat refund?

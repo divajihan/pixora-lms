@@ -20,7 +20,9 @@ Baca dokumen itu sebelum mengerjakan fitur apa pun.
   **Fase 4** (batch per kursus drip, player lesson, drip per batch + override instruktur, progres — branch
   `feat/phase-4-batches-learning`).
   **Fase 5** (tugas gambar, tenggat + perpanjangan, pengumpulan, feedback instruktur/staf — branch `feat/phase-5-assignments`).
-  Fase berikutnya: **Fase 6** (sertifikat). Jangan membuat sertifikat, notifikasi email, atau laporan sebelum fasenya.
+  **Fase 6** (sertifikat PDF diklaim siswa, verifikasi publik, cabut/terbit manual — branch `feat/phase-6-certificates`).
+  Fase berikutnya: **Fase 7** (notifikasi, laporan dasar, hardening, deploy). Jangan membuat notifikasi email baru atau
+  laporan sebelum fasenya.
 
 ## Stack
 
@@ -51,7 +53,9 @@ app/
                         # SubmitAssignment, UpdateSubmission, PostSubmissionComment, EditSubmissionComment,
                         # SetDeadlineOverride, SaveAssignment, StoreImages, BuildAssignmentPanel,
                         # BuildAssignmentReview, ListStudentAssignments, ListSubmissionsToReview
-  Actions/<Modul>/      # fase berikutnya: Certificate
+  Actions/Certificates/ # CheckCertificateEligibility (+ CertificateEligibility), ClaimCertificate, CreateCertificate,
+                        # NextCertificateNumber, IssueCertificateManually, RevokeCertificate, BuildCertificateCard,
+                        # ListAdminCertificates
   Enums/                # Role, Permission, CourseStatus, CourseInstructorRole, CoursePriceFilter, LessonType, LessonStatus
   Http/Controllers/
     Public/             # HomeController, CourseController (katalog & detail + kurikulum publik)
@@ -64,6 +68,11 @@ app/
                         # SubmissionReviewController (/pengumpulan, detail, komentar)
     Admin/AssignmentController   # tugas di kurikulum (courses.manage)
     AttachmentController         # satu-satunya jalur baca gambar tugas (Policy)
+    CertificateController        # satu-satunya jalur unduh PDF sertifikat (CertificatePolicy)
+    Student/CertificateController   # klaim (POST /belajar/{course}/sertifikat), "Sertifikat saya"
+    Public/CertificateVerificationController   # /verifikasi, /verifikasi/{kode} (noindex, throttle)
+    Admin/CertificateController  # daftar (staf+admin), cabut, terbit manual, buat ulang PDF (admin)
+    Admin/CertificateSettingsController   # teks sertifikat (settings.manage)
     Instructor/DashboardController   # kartu "Perlu direview"
     LearnController     # player /belajar/{course}[/lesson/{lesson}] + tandai/batalkan selesai
     ClassController     # /kelas/{course}/batch/...: siswa, jadwal batch & per siswa, pindah batch (admin)
@@ -83,6 +92,9 @@ app/
   Policies/             # CoursePolicy (+ manageClass), ModulePolicy, LessonPolicy (+ viewContent/complete), OrderPolicy,
                         # EnrollmentPolicy, AssignmentPolicy, SubmissionPolicy, SubmissionCommentPolicy, AttachmentPolicy
   Services/Images/      # ImageNormalizer (GD: buang metadata, perkecil, thumbnail)
+  Services/Certificates/CertificatePdfRenderer.php   # Dompdf + QR (bacon), view certificates/default
+  Support/CertificateSettings.php, Support/RecipientName.php   # teks sertifikat (tabel settings), aturan nama
+  Jobs/GenerateCertificatePdf.php   # PDF ke disk privat "certificates" (3x percobaan)
   Rules/AllowedImage.php   # tipe gambar dari isi file (finfo): JPEG/PNG/WebP
   Jobs/DeleteStoredFiles.php   # hapus file lampiran setelah commit
   Jobs/RecalculateCourseProgress.php   # hitung ulang progres saat lesson terbit/ditarik/dihapus (LessonObserver)
@@ -155,6 +167,8 @@ Role dan permission didefinisikan di enum `App\Enums\Role` dan `App\Enums\Permis
 | `courses.enroll`      |   ✓   |      |            |   ✓   | Beli/ambil kursus (Fase 3)                        |
 | `assignments.review`  |   ✓   |      |     ✓      |       | Feedback & perpanjangan tenggat, kursus miliknya  |
 | `assignments.comment` |   ✓   |  ✓   |            |       | Lihat semua pengumpulan & ikut berkomentar (F5)   |
+| `certificates.manage` |   ✓   |      |            |       | Cabut, terbit manual, buat ulang PDF (F6)         |
+| `certificates.view`   |   ✓   |  ✓   |            |       | Daftar & unduh semua sertifikat (F6)              |
 | `orders.manage`       |   ✓   |  ✓   |            |       | Kelola order (Fase 3)                             |
 | `payments.confirm`    |   ✓   |  ✓   |            |       | Konfirmasi pembayaran manual (Fase 3)             |
 | `users.manage`        |   ✓   |      |            |       | Kelola pengguna dan role                          |
@@ -171,6 +185,24 @@ Role dan permission didefinisikan di enum `App\Enums\Role` dan `App\Enums\Permis
   pengguna (`/admin/pengguna`) dikunci `permission:users.manage`, plus Policy per aksi. **Staf tidak boleh mengubah konten
   kursus** (403). Instruktur hanya membaca kursus yang ditugaskan (`/instruktur/kursus`, kursus lain = 404).
 - Menu sidebar dibentuk dari `auth.roles`/`auth.permissions` (shared props) di `useMainNavItems` — hanya UI.
+
+## Sertifikat (Fase 6)
+
+- **Kelayakan hanya dari `CheckCertificateEligibility`** (versi massal `many()` untuk satu kursus, jumlah query tetap):
+  semua lesson published (modul aktif) selesai, semua tugas `published` + `is_required` dikumpulkan (terlambat dihitung),
+  kursus drip: sekarang ≥ `Batch::certificatesOpenAt()` (`certificates_open_on` atau `ends_on + 1 hari`, 00.00 WIB).
+  Penghalang: `certificate_enabled = false`, kursus draft, enrollment revoked/expired/lewat `expires_at`.
+- Klaim lewat `ClaimCertificate` saja: lock enrollment, kembalikan sertifikat aktif bila ada (idempoten), cek ulang,
+  `CreateCertificate` (nomor dari `NextCertificateNumber` — wajib di dalam transaksi; snapshot nama/kursus/batch;
+  enrollment → `completed`; job PDF `afterCommit`). **Enrollment `completed` tetap memberi akses** (`accessible()`,
+  `grantsAccess()`).
+- Satu sertifikat aktif per enrollment: `certificates.active_enrollment_id` unik (null setelah dicabut). Cabut
+  (`RevokeCertificate`) mengembalikan enrollment ke `active`; klaim ulang membuat baris & nomor baru.
+- PDF: satu template `resources/views/certificates/default.blade.php` (Dompdf, DejaVu Sans, CSS inline, tanpa flexbox);
+  data selalu dicetak dengan `{{ }}`. Disk privat `certificates`, jangan kirim `pdf_path` ke props. Buat ulang:
+  aksi admin atau `php artisan certificates:regenerate-pdf [nomor] [--all]`.
+- Verifikasi publik hanya menampilkan data yang tercetak (tanpa email/telepon); 404 untuk kode tak dikenal.
+- Instruktur hanya melihat status sertifikat di daftar siswa batch (tanpa aksi) dan boleh mengunduh PDF kursusnya.
 
 ## Tugas & feedback (Fase 5)
 
@@ -203,7 +235,7 @@ Role dan permission didefinisikan di enum `App\Enums\Role` dan `App\Enums\Permis
   `SaveLesson` menolak memundurkan `drip_day_offset` lesson yang sudah terbuka di batch yang punya siswa).
   `lesson_unlock_overrides.scope_key` (= enrollment_id ?? 0) diisi model untuk unique NULL-safe.
 - Progres: `MarkLessonCompleted`/`UnmarkLessonCompleted` → `RecalculateEnrollmentProgress` (floor, hanya lesson published).
-  Progres 100% **tidak** menyelesaikan enrollment (Fase 6). Akses kedaluwarsa kursus drip dihitung dari akhir batch.
+  Progres 100% **tidak** menyelesaikan enrollment; klaim sertifikat yang melakukannya (Fase 6). Akses kedaluwarsa kursus drip dihitung dari akhir batch.
 - `/kelas` hanya untuk instruktur yang ditugaskan dan admin (`CoursePolicy::manageClass`, selain itu 404); staf tidak.
   Pindah batch hanya admin (`MoveEnrollmentToBatch`, dicatat di log).
 

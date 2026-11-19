@@ -2,7 +2,6 @@
 
 namespace App\Http\Resources;
 
-use App\Enums\EnrollmentStatus;
 use App\Models\Enrollment;
 use App\Models\Order;
 use App\Models\OrderItem;
@@ -73,7 +72,7 @@ class OrderResource extends JsonResource
                 'is_accessible' => $enrollment->grantsAccess(),
             ])->values()->all()),
             'has_access' => $this->whenLoaded('enrollments', fn () => $this->enrollments->contains(
-                fn (Enrollment $enrollment) => $enrollment->status === EnrollmentStatus::Active && $enrollment->grantsAccess()
+                fn (Enrollment $enrollment) => $enrollment->grantsAccess()
             )),
         ];
     }

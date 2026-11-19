@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Carbon;
 
 /**
@@ -48,20 +49,21 @@ class Enrollment extends Model
     }
 
     /**
-     * Enrollments that currently grant access: active and not past expires_at.
+     * Enrollments that currently grant access: active or completed (certificate
+     * claimed; learning stays open) and not past expires_at.
      *
      * @param  Builder<Enrollment>  $query
      */
     #[Scope]
     protected function accessible(Builder $query): void
     {
-        $query->where('status', EnrollmentStatus::Active)
+        $query->whereIn('status', [EnrollmentStatus::Active, EnrollmentStatus::Completed])
             ->where(fn (Builder $query) => $query->whereNull('expires_at')->orWhere('expires_at', '>', now()));
     }
 
     public function grantsAccess(): bool
     {
-        return $this->status === EnrollmentStatus::Active
+        return in_array($this->status, [EnrollmentStatus::Active, EnrollmentStatus::Completed], true)
             && ($this->expires_at === null || $this->expires_at->isFuture());
     }
 
@@ -111,5 +113,23 @@ class Enrollment extends Model
     public function submissions(): HasMany
     {
         return $this->hasMany(Submission::class);
+    }
+
+    /**
+     * @return HasMany<Certificate, $this>
+     */
+    public function certificates(): HasMany
+    {
+        return $this->hasMany(Certificate::class);
+    }
+
+    /**
+     * The valid (not revoked) certificate, if any.
+     *
+     * @return HasOne<Certificate, $this>
+     */
+    public function activeCertificate(): HasOne
+    {
+        return $this->hasOne(Certificate::class, 'active_enrollment_id');
     }
 }
