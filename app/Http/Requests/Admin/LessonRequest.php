@@ -69,7 +69,7 @@ class LessonRequest extends FormRequest
             'title' => 'judul lesson',
             'type' => 'tipe',
             'video_url' => 'URL video',
-            'summary_html' => 'ringkasan',
+            'summary_html' => 'catatan',
             'drip_day_offset' => 'hari buka',
             'duration_seconds' => 'durasi',
             'live_starts_at' => 'waktu mulai',

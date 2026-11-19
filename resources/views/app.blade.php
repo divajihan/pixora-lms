@@ -46,7 +46,7 @@
         @php
             $metaTitle = $page['props']['meta']['title'] ?? null;
             $metaDescription = $page['props']['meta']['description']
-                ?? 'Belajar online di '.config('app.name').': kursus video, rangkuman materi, tugas, dan sertifikat.';
+                ?? 'Belajar online di '.config('app.name').': kursus video, catatan materi, tugas, dan sertifikat.';
         @endphp
         <x-inertia::head>
             <title>{{ $metaTitle ? $metaTitle.' - '.config('app.name') : config('app.name') }}</title>

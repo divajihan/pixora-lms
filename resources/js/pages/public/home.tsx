@@ -14,8 +14,8 @@ import type {
 const highlights = [
     {
         icon: PlayCircle,
-        title: 'Video & rangkuman',
-        description: 'Materi video singkat dengan rangkuman tertulis.',
+        title: 'Video & catatan',
+        description: 'Materi video singkat dengan catatan tertulis.',
     },
     {
         icon: ClipboardCheck,

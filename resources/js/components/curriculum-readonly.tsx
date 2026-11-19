@@ -160,7 +160,7 @@ export function CurriculumReadonly({
                                                     />
                                                 ) : (
                                                     <p className="text-sm text-muted-foreground">
-                                                        Belum ada ringkasan.
+                                                        Belum ada catatan.
                                                     </p>
                                                 )}
                                             </CollapsibleContent>

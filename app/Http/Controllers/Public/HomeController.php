@@ -32,7 +32,7 @@ class HomeController extends Controller
         return Inertia::render('public/home', [
             'meta' => [
                 'title' => null,
-                'description' => 'Belajar online di '.config('app.name').': kursus video, rangkuman materi, tugas dengan feedback instruktur, dan sertifikat.',
+                'description' => 'Belajar online di '.config('app.name').': kursus video, catatan materi, tugas dengan feedback instruktur, dan sertifikat.',
             ],
             'latestCourses' => CourseCardResource::collection($courses)->resolve(),
             'categories' => $categories->map->only(['name', 'slug'])->values(),
