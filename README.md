@@ -64,23 +64,27 @@ Buka http://localhost:8000.
 
 ### Halaman dan akun dev
 
-| Halaman              | URL                            | Akses                                    |
-| -------------------- | ------------------------------ | ---------------------------------------- |
-| Beranda              | `/`                            | Publik                                   |
-| Katalog kursus       | `/kursus`                      | Publik (cari, filter kategori & harga)   |
-| Detail kursus        | `/kursus/{slug}`               | Publik, hanya kursus berstatus terbit    |
-| Dasbor (sesuai role) | `/dashboard` → redirect        | Login + email terverifikasi              |
-| Dasbor admin/staf    | `/admin`                       | Role `admin` atau `staff`                |
-| Dasbor instruktur    | `/instruktur`                  | Role `instructor`                        |
-| Dasbor siswa         | `/siswa`                       | Role `student` (otomatis saat daftar)    |
-| Kelola kursus        | `/admin/kursus`                | Permission `courses.manage` (admin)      |
-| Kurikulum kursus     | `/admin/kursus/{id}/kurikulum` | Permission `courses.manage` (admin)      |
-| Pengguna             | `/admin/pengguna`              | Permission `users.manage` (admin)        |
-| Kursus saya          | `/instruktur/kursus`           | Role `instructor`, hanya kursus miliknya |
-| Checkout             | `/kursus/{slug}/checkout`      | Siswa (login + email terverifikasi)      |
-| Kursus saya (siswa)  | `/siswa/kursus`                | Role `student`                           |
-| Pesanan & invoice    | `/siswa/pesanan`               | Role `student`, hanya miliknya           |
-| Pesanan (admin)      | `/admin/pesanan`               | Permission `orders.manage` (admin, staf) |
+| Halaman               | URL                            | Akses                                    |
+| --------------------- | ------------------------------ | ---------------------------------------- |
+| Beranda               | `/`                            | Publik                                   |
+| Katalog kursus        | `/kursus`                      | Publik (cari, filter kategori & harga)   |
+| Detail kursus         | `/kursus/{slug}`               | Publik, hanya kursus berstatus terbit    |
+| Dasbor (sesuai role)  | `/dashboard` → redirect        | Login + email terverifikasi              |
+| Dasbor admin/staf     | `/admin`                       | Role `admin` atau `staff`                |
+| Dasbor instruktur     | `/instruktur`                  | Role `instructor`                        |
+| Dasbor siswa          | `/siswa`                       | Role `student` (otomatis saat daftar)    |
+| Kelola kursus         | `/admin/kursus`                | Permission `courses.manage` (admin)      |
+| Kurikulum kursus      | `/admin/kursus/{id}/kurikulum` | Permission `courses.manage` (admin)      |
+| Pengguna              | `/admin/pengguna`              | Permission `users.manage` (admin)        |
+| Kursus saya           | `/instruktur/kursus`           | Role `instructor`, hanya kursus miliknya |
+| Checkout              | `/kursus/{slug}/checkout`      | Siswa (login + email terverifikasi)      |
+| Kursus saya (siswa)   | `/siswa/kursus`                | Role `student`                           |
+| Pesanan & invoice     | `/siswa/pesanan`               | Role `student`, hanya miliknya           |
+| Pesanan (admin)       | `/admin/pesanan`               | Permission `orders.manage` (admin, staf) |
+| Sertifikat saya       | `/siswa/sertifikat`            | Role `student`, hanya miliknya           |
+| Sertifikat (admin)    | `/admin/sertifikat`            | Staf (lihat/unduh), admin (kelola)       |
+| Pengaturan sertifikat | `/admin/pengaturan/sertifikat` | Permission `settings.manage` (admin)     |
+| Verifikasi sertifikat | `/verifikasi/{kode}`           | Publik (noindex, dibatasi 30/menit)      |
 
 Akun dev dari `php artisan migrate --seed` (hanya `local`/`testing`, emailnya sudah terverifikasi):
 
@@ -115,6 +119,15 @@ Catatan:
   GD server ditolak dengan pesan jelas (gambar tidak pernah disimpan tanpa normalisasi/penghapusan EXIF). Herd Lite di
   Windows hanya mendukung PNG — unggah PNG saat uji lokal.
 - File tugas disimpan di `storage/app/private/assignments` (disk `assignments`, tidak bisa diakses langsung).
+- **Sertifikat**: PDF dibuat oleh job antrean (`GenerateCertificatePdf`) memakai Dompdf ke
+  `storage/app/private/certificates` (disk `certificates`, tidak bisa diakses langsung). Worker antrean harus jalan agar
+  PDF hasil klaim siap (`composer dev`). Data demo: di batch selesai kursus drip gratis pertama, `siswa1` punya
+  sertifikat yang dicabut (nama salah ketik) + sertifikat baru, `siswa2` sertifikat terbit manual.
+- **Mengganti desain sertifikat**: edit satu file `resources/views/certificates/default.blade.php` (A4 landscape, CSS
+  inline yang didukung Dompdf: tanpa flexbox/grid, pakai tabel/posisi absolut; font `DejaVu Sans`). Teks lembaga, judul,
+  kalimat, dan penanda tangan diatur di `/admin/pengaturan/sertifikat`. Setelah mengubah desain/teks, buat ulang PDF lama
+  dengan `php artisan certificates:regenerate-pdf --all` (atau "Buat ulang PDF" per sertifikat). Nomor:
+  `CERTIFICATE_NUMBER_PREFIX-TAHUN-000001`.
 - Jam buka lesson drip: `LESSON_UNLOCK_TIME` (default `00:00`, zona `Asia/Jakarta`); offset 0 = tanggal mulai batch.
 - Scheduler (order & enrollment kedaluwarsa): di server tambahkan cron `* * * * * php artisan schedule:run`;
   di lokal jalankan `php artisan schedule:work` bila perlu.
@@ -155,22 +168,23 @@ Catatan:
 
 ## Perintah umum
 
-| Perintah                               | Keterangan                                                                               |
-| -------------------------------------- | ---------------------------------------------------------------------------------------- |
-| `composer dev`                         | Jalankan server, queue, log (pail), dan Vite                                             |
-| `php artisan test`                     | Jalankan test (Pest, SQLite in-memory)                                                   |
-| `vendor/bin/pint`                      | Format kode PHP (`--test` untuk cek saja)                                                |
-| `vendor/bin/phpstan analyse`           | Analisis statis PHP (Larastan)                                                           |
-| `npm run lint`                         | Cek lint + format frontend (`npm run lint:fix` untuk fix)                                |
-| `npm run types:check`                  | Type-check TypeScript                                                                    |
-| `npm run build`                        | Build aset produksi                                                                      |
-| `php artisan migrate`                  | Jalankan migrasi database                                                                |
-| `php artisan migrate:fresh --seed`     | Reset database + data awal (local)                                                       |
-| `docker compose up -d`                 | Nyalakan MySQL + Redis                                                                   |
-| `docker compose down`                  | Matikan container (tambah `-v` untuk hapus data)                                         |
-| `php artisan orders:expire-pending`    | Tandai order pending yang lewat batas waktu sebagai kedaluwarsa (terjadwal tiap 5 menit) |
-| `php artisan enrollments:expire-ended` | Tandai enrollment yang lewat masa akses sebagai kedaluwarsa (terjadwal harian)           |
-| `php artisan schedule:work`            | Jalankan scheduler di lokal                                                              |
+| Perintah                                  | Keterangan                                                                               |
+| ----------------------------------------- | ---------------------------------------------------------------------------------------- |
+| `composer dev`                            | Jalankan server, queue, log (pail), dan Vite                                             |
+| `php artisan test`                        | Jalankan test (Pest, SQLite in-memory)                                                   |
+| `vendor/bin/pint`                         | Format kode PHP (`--test` untuk cek saja)                                                |
+| `vendor/bin/phpstan analyse`              | Analisis statis PHP (Larastan)                                                           |
+| `npm run lint`                            | Cek lint + format frontend (`npm run lint:fix` untuk fix)                                |
+| `npm run types:check`                     | Type-check TypeScript                                                                    |
+| `npm run build`                           | Build aset produksi                                                                      |
+| `php artisan migrate`                     | Jalankan migrasi database                                                                |
+| `php artisan migrate:fresh --seed`        | Reset database + data awal (local)                                                       |
+| `docker compose up -d`                    | Nyalakan MySQL + Redis                                                                   |
+| `docker compose down`                     | Matikan container (tambah `-v` untuk hapus data)                                         |
+| `php artisan orders:expire-pending`       | Tandai order pending yang lewat batas waktu sebagai kedaluwarsa (terjadwal tiap 5 menit) |
+| `php artisan enrollments:expire-ended`    | Tandai enrollment yang lewat masa akses sebagai kedaluwarsa (terjadwal harian)           |
+| `php artisan schedule:work`               | Jalankan scheduler di lokal                                                              |
+| `php artisan certificates:regenerate-pdf` | Antrekan PDF sertifikat yang belum ada (`{nomor}` satu sertifikat, `--all` semua aktif)  |
 
 ## Struktur folder (ringkas)
 
