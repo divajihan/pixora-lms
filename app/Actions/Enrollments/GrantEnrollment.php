@@ -52,7 +52,7 @@ class GrantEnrollment
         }
 
         if (in_array($enrollment->status, [EnrollmentStatus::Expired, EnrollmentStatus::Revoked], true)
-            || ($enrollment->status === EnrollmentStatus::Active && ! $enrollment->grantsAccess())) {
+            || (in_array($enrollment->status, [EnrollmentStatus::Active, EnrollmentStatus::Completed], true) && ! $enrollment->grantsAccess())) {
             $enrollment->update($attributes);
             $this->warnIfOverCapacity($batch);
         }

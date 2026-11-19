@@ -2,6 +2,8 @@
 
 use App\Http\Controllers\Admin\AssignmentController as AdminAssignmentController;
 use App\Http\Controllers\Admin\BatchController;
+use App\Http\Controllers\Admin\CertificateController as AdminCertificateController;
+use App\Http\Controllers\Admin\CertificateSettingsController;
 use App\Http\Controllers\Admin\CourseController as AdminCourseController;
 use App\Http\Controllers\Admin\CourseInstructorController;
 use App\Http\Controllers\Admin\CourseStatusController;
@@ -11,17 +13,20 @@ use App\Http\Controllers\Admin\ModuleController;
 use App\Http\Controllers\Admin\OrderController as AdminOrderController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\AttachmentController;
+use App\Http\Controllers\CertificateController;
 use App\Http\Controllers\CheckoutController;
 use App\Http\Controllers\ClassController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\Instructor\CourseController as InstructorCourseController;
 use App\Http\Controllers\Instructor\DashboardController as InstructorDashboardController;
 use App\Http\Controllers\LearnController;
+use App\Http\Controllers\Public\CertificateVerificationController;
 use App\Http\Controllers\Public\CourseController;
 use App\Http\Controllers\Public\HomeController;
 use App\Http\Controllers\Review\AssignmentReviewController;
 use App\Http\Controllers\Review\SubmissionReviewController;
 use App\Http\Controllers\Student\AssignmentController as StudentAssignmentController;
+use App\Http\Controllers\Student\CertificateController as StudentCertificateController;
 use App\Http\Controllers\Student\CourseController as StudentCourseController;
 use App\Http\Controllers\Student\OrderController as StudentOrderController;
 use App\Http\Controllers\WebhookController;
@@ -33,6 +38,14 @@ Route::get('kursus', [CourseController::class, 'index'])->name('courses.index');
 Route::get('kursus/{course:slug}', [CourseController::class, 'show'])
     ->name('courses.show')
     ->can('view', 'course');
+
+// Public certificate verification (no personal data; noindex; throttled).
+Route::middleware('throttle:certificate-verify')->group(function () {
+    Route::get('verifikasi', [CertificateVerificationController::class, 'form'])->name('certificates.verify.form');
+    Route::get('verifikasi/{code}', [CertificateVerificationController::class, 'show'])
+        ->where('code', '[A-Za-z0-9\-]{1,40}')
+        ->name('certificates.verify');
+});
 
 // Payment gateway notifications: public, CSRF-exempt (bootstrap/app.php), signature-verified.
 Route::post('webhooks/midtrans', [WebhookController::class, 'midtrans'])
@@ -67,7 +80,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
             ->middleware('throttle:uploads')->name('assignments.submit');
         Route::post('tugas/{assignment}/ubah', [StudentAssignmentController::class, 'update'])
             ->middleware('throttle:uploads')->name('assignments.update');
+
+        // Certificate claim (owner; eligibility re-checked in ClaimCertificate).
+        Route::post('sertifikat', [StudentCertificateController::class, 'claim'])
+            ->middleware('throttle:certificate-claims')->name('certificate.claim');
     });
+
+    // Certificate PDF (private disk; CertificatePolicy::download).
+    Route::get('sertifikat/{certificate}/unduh', [CertificateController::class, 'download'])->name('certificates.download');
 
     // Submission and comment images (private disk; AttachmentPolicy).
     Route::get('lampiran/{attachment}', [AttachmentController::class, 'show'])->name('attachments.show');
@@ -154,6 +174,17 @@ Route::middleware(['auth', 'verified'])->group(function () {
             Route::post('pesanan/{order}/refund', [AdminOrderController::class, 'refund'])->name('orders.refund');
         });
 
+        // Certificates: list for staff + admin (policy), actions admin only (certificates.manage).
+        Route::get('sertifikat', [AdminCertificateController::class, 'index'])->name('certificates.index');
+        Route::post('sertifikat', [AdminCertificateController::class, 'store'])->name('certificates.store');
+        Route::post('sertifikat/{certificate}/cabut', [AdminCertificateController::class, 'revoke'])->name('certificates.revoke');
+        Route::post('sertifikat/{certificate}/buat-ulang-pdf', [AdminCertificateController::class, 'regenerate'])->name('certificates.regenerate');
+
+        Route::middleware('permission:settings.manage')->group(function () {
+            Route::get('pengaturan/sertifikat', [CertificateSettingsController::class, 'edit'])->name('certificate-settings.edit');
+            Route::put('pengaturan/sertifikat', [CertificateSettingsController::class, 'update'])->name('certificate-settings.update');
+        });
+
         Route::middleware('permission:users.manage')->group(function () {
             Route::get('pengguna', [UserController::class, 'index'])->name('users.index');
             Route::post('pengguna', [UserController::class, 'store'])->name('users.store');
@@ -172,6 +203,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
         Route::get('kursus', [StudentCourseController::class, 'index'])->name('courses.index');
         Route::get('tugas', [StudentAssignmentController::class, 'index'])->name('assignments.index');
+        Route::get('sertifikat', [StudentCertificateController::class, 'index'])->name('certificates.index');
         // Phase 3 URL (used in sent emails) → the learning player.
         Route::redirect('kursus/{course}/belajar', '/belajar/{course}')->name('courses.learn');
 

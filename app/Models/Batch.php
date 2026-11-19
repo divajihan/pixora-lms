@@ -26,6 +26,7 @@ use Illuminate\Support\Carbon;
  * @property CarbonInterface $starts_on
  * @property CarbonInterface $ends_on
  * @property CarbonInterface|null $registration_closes_on
+ * @property CarbonInterface|null $certificates_open_on Null = the day after ends_on.
  * @property int|null $capacity Null = unlimited.
  * @property bool $is_published
  * @property int|null $seats_taken_count From withSeatsTaken().
@@ -33,7 +34,7 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $updated_at
  * @property Carbon|null $deleted_at
  */
-#[Fillable(['course_id', 'name', 'starts_on', 'ends_on', 'registration_closes_on', 'capacity', 'is_published'])]
+#[Fillable(['course_id', 'name', 'starts_on', 'ends_on', 'registration_closes_on', 'certificates_open_on', 'capacity', 'is_published'])]
 class Batch extends Model
 {
     /** @use HasFactory<BatchFactory> */
@@ -53,6 +54,7 @@ class Batch extends Model
             'starts_on' => 'date',
             'ends_on' => 'date',
             'registration_closes_on' => 'date',
+            'certificates_open_on' => 'date',
             'capacity' => 'integer',
             'is_published' => 'boolean',
         ];
@@ -151,6 +153,17 @@ class Batch extends Model
         return CarbonImmutable::parse($this->starts_on->format('Y-m-d'), config('app.timezone'))
             ->addDays($offset)
             ->setTime($hour, $minute);
+    }
+
+    /**
+     * Moment certificates of this batch can be claimed: 00:00 (app timezone) of
+     * certificates_open_on, or of the day after ends_on.
+     */
+    public function certificatesOpenAt(): CarbonImmutable
+    {
+        $date = $this->certificates_open_on?->format('Y-m-d') ?? $this->ends_on->copy()->addDay()->format('Y-m-d');
+
+        return CarbonImmutable::parse($date, config('app.timezone'))->startOfDay();
     }
 
     /**

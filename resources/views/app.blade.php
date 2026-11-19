@@ -51,6 +51,9 @@
         <x-inertia::head>
             <title>{{ $metaTitle ? $metaTitle.' - '.config('app.name') : config('app.name') }}</title>
             <meta name="description" content="{{ $metaDescription }}" data-inertia="description">
+            @if ($page['props']['meta']['noindex'] ?? false)
+                <meta name="robots" content="noindex, nofollow" data-inertia="robots">
+            @endif
         </x-inertia::head>
     </head>
     <body class="font-sans antialiased">

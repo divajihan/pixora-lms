@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Actions\Assignments\AssignmentAvailability;
 use App\Actions\Assignments\BuildAssignmentPanel;
+use App\Actions\Certificates\BuildCertificateCard;
 use App\Actions\Learning\BuildCourseOutline;
 use App\Actions\Learning\MarkLessonCompleted;
 use App\Actions\Learning\UnmarkLessonCompleted;
@@ -31,9 +32,11 @@ use Inertia\Response;
  */
 class LearnController extends Controller
 {
-    public function course(Request $request, Course $course, BuildCourseOutline $outline, AssignmentAvailability $availability): Response
+    public function course(Request $request, Course $course, BuildCourseOutline $outline, AssignmentAvailability $availability, BuildCertificateCard $certificate): Response
     {
         $enrollment = $this->enrollment($request, $course);
+        /** @var User $user */
+        $user = $request->user();
         $data = $outline->handle($enrollment);
 
         return Inertia::render('learn/course', [
@@ -43,6 +46,7 @@ class LearnController extends Controller
             'counts' => $data['counts'],
             'continueSlug' => $data['continue_slug'],
             'finalProject' => $this->finalProject($course, $enrollment, $availability),
+            'certificate' => $certificate->handle($enrollment, $user),
         ]);
     }
 

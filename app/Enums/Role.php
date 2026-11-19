@@ -38,6 +38,7 @@ enum Role: string
                 Permission::StudentsAssist,
                 Permission::ContentModerate,
                 Permission::AssignmentsComment,
+                Permission::CertificatesView,
             ],
             self::Instructor => [
                 Permission::CoursesTeach,

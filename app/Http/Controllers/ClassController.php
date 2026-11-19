@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Actions\Certificates\CertificateEligibility;
+use App\Actions\Certificates\CheckCertificateEligibility;
 use App\Actions\Learning\ComputeLessonAccess;
 use App\Actions\Learning\MoveEnrollmentToBatch;
 use App\Actions\Learning\SetLessonUnlockOverride;
@@ -40,7 +42,7 @@ class ClassController extends Controller
         ]);
     }
 
-    public function students(Request $request, Course $course, Batch $batch): Response
+    public function students(Request $request, Course $course, Batch $batch, CheckCertificateEligibility $certificateEligibility): Response
     {
         Gate::authorize('manageClass', $course);
         $this->ensureBelongs($course, $batch);
@@ -56,16 +58,22 @@ class ClassController extends Controller
             ->orderByDesc('progress_percent')
             ->orderBy('id')
             ->paginate(20)
-            ->withQueryString()
-            ->through(fn (Enrollment $enrollment) => [
-                'id' => $enrollment->id,
-                'name' => $enrollment->user->name,
-                'email' => $enrollment->user->email,
-                'status' => $enrollment->status->value,
-                'status_label' => $enrollment->status->label(),
-                'progress_percent' => $enrollment->progress_percent,
-                'enrolled_at' => $enrollment->enrolled_at->toIso8601String(),
-            ]);
+            ->withQueryString();
+
+        // Certificate status per student, computed for the whole page at once (no N+1).
+        $page = $students->getCollection()->each(fn (Enrollment $enrollment) => $enrollment->setRelation('course', $course)->setRelation('batch', $batch));
+        $certificates = $certificateEligibility->many($page);
+
+        $students = $students->through(fn (Enrollment $enrollment) => [
+            'id' => $enrollment->id,
+            'name' => $enrollment->user->name,
+            'email' => $enrollment->user->email,
+            'status' => $enrollment->status->value,
+            'status_label' => $enrollment->status->label(),
+            'progress_percent' => $enrollment->progress_percent,
+            'enrolled_at' => $enrollment->enrolled_at->toIso8601String(),
+            'certificate' => $this->certificateStatus($certificates[$enrollment->id]),
+        ]);
 
         /** @var User $user */
         $user = $request->user();
@@ -241,5 +249,21 @@ class ClassController extends Controller
     private function courseProps(Course $course): array
     {
         return ['id' => $course->id, 'title' => $course->title, 'slug' => $course->slug, 'drip_enabled' => $course->drip_enabled];
+    }
+
+    /**
+     * Read-only certificate column of the roster (no actions for instructors).
+     *
+     * @return array{status: string, label: string}
+     */
+    private function certificateStatus(CertificateEligibility $eligibility): array
+    {
+        if (! $eligibility->enabled && $eligibility->certificate === null) {
+            return ['status' => 'disabled', 'label' => 'Tidak tersedia'];
+        }
+
+        $status = $eligibility->status();
+
+        return ['status' => $status, 'label' => CertificateEligibility::statusLabel($status)];
     }
 }

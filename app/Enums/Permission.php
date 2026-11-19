@@ -20,6 +20,10 @@ enum Permission: string
     case AssignmentsReview = 'assignments.review';
     // See every submission and comment on it (staff, admin) — Phase 5.
     case AssignmentsComment = 'assignments.comment';
+    // Certificates (Phase 6): manage = revoke, issue manually, regenerate PDFs;
+    // view = list and download every certificate (staff).
+    case CertificatesManage = 'certificates.manage';
+    case CertificatesView = 'certificates.view';
     // Orders and manual payment confirmation (Phase 3).
     case OrdersManage = 'orders.manage';
     case PaymentsConfirm = 'payments.confirm';

@@ -16,7 +16,7 @@ use Illuminate\Validation\ValidationException;
 class SaveBatch
 {
     /**
-     * @param  array{name: string, starts_on: string, ends_on: string, registration_closes_on: string|null, capacity: int|string|null, is_published: bool}  $data
+     * @param  array{name: string, starts_on: string, ends_on: string, registration_closes_on: string|null, certificates_open_on?: string|null, capacity: int|string|null, is_published: bool}  $data
      */
     public function handle(Course $course, ?Batch $batch, array $data): Batch
     {
@@ -48,6 +48,7 @@ class SaveBatch
                 'starts_on' => $data['starts_on'],
                 'ends_on' => $data['ends_on'],
                 'registration_closes_on' => $data['registration_closes_on'],
+                'certificates_open_on' => $data['certificates_open_on'] ?? null,
                 'capacity' => $data['capacity'] !== null ? (int) $data['capacity'] : null,
                 'is_published' => $data['is_published'],
             ])->save();

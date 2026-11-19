@@ -64,6 +64,8 @@ class AppServiceProvider extends ServiceProvider
 
         // Image uploads (submissions) and feedback comments, per user.
         RateLimiter::for('uploads', fn (Request $request) => Limit::perMinute(20)->by((string) ($request->user()->id ?? $request->ip())));
+        RateLimiter::for('certificate-claims', fn (Request $request) => Limit::perMinute(10)->by((string) ($request->user()->id ?? $request->ip())));
+        RateLimiter::for('certificate-verify', fn (Request $request) => Limit::perMinute(30)->by((string) $request->ip()));
         RateLimiter::for('comments', fn (Request $request) => Limit::perMinute(30)->by((string) ($request->user()->id ?? $request->ip())));
 
         // Indonesian URLs for resource routes: /kursus/buat, /kursus/{id}/ubah.
