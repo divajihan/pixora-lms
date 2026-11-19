@@ -1,11 +1,28 @@
 import { useEffect, useRef } from 'react';
 
-type YTPlayer = { destroy: () => void };
+export type YTPlayer = {
+    destroy: () => void;
+    getDuration?: () => number;
+    mute?: () => void;
+    playVideo?: () => void;
+    pauseVideo?: () => void;
+};
 type YTNamespace = {
     Player: new (
-        element: HTMLIFrameElement,
+        element: HTMLElement,
         options: {
-            events: { onStateChange: (event: { data: number }) => void };
+            videoId?: string;
+            width?: number;
+            height?: number;
+            playerVars?: Record<string, number | string>;
+            events: {
+                onReady?: (event: { target: YTPlayer }) => void;
+                onError?: (event: { data: number }) => void;
+                onStateChange?: (event: {
+                    data: number;
+                    target: YTPlayer;
+                }) => void;
+            };
         },
     ) => YTPlayer;
     PlayerState: { ENDED: number };
@@ -20,7 +37,7 @@ declare global {
 
 let apiPromise: Promise<YTNamespace> | null = null;
 
-function loadYouTubeApi(): Promise<YTNamespace> {
+export function loadYouTubeApi(): Promise<YTNamespace> {
     if (window.YT?.Player) {
         return Promise.resolve(window.YT);
     }

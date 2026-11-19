@@ -119,6 +119,10 @@ Catatan:
   GD server ditolak dengan pesan jelas (gambar tidak pernah disimpan tanpa normalisasi/penghapusan EXIF). Herd Lite di
   Windows hanya mendukung PNG — unggah PNG saat uji lokal.
 - File tugas disimpan di `storage/app/private/assignments` (disk `assignments`, tidak bisa diakses langsung).
+- **Gambar di catatan lesson & instruksi tugas**: tombol gambar di editor mengunggah ke `storage/app/public/content-images`
+  (disimpan ulang tanpa EXIF, maks. 1600 px, ukuran maks. `CONTENT_IMAGE_MAX_KB`, default 5 MB).
+- URL file publik (sampul, avatar, gambar konten) bersifat relatif (`/storage/...`) sehingga tetap tampil saat dibuka dari HP
+  lewat IP LAN. Untuk CDN, isi `PUBLIC_DISK_URL`.
 - **Sertifikat**: PDF dibuat oleh job antrean (`GenerateCertificatePdf`) memakai Dompdf ke
   `storage/app/private/certificates` (disk `certificates`, tidak bisa diakses langsung). Worker antrean harus jalan agar
   PDF hasil klaim siap (`composer dev`). Data demo: di batch selesai kursus drip gratis pertama, `siswa1` punya

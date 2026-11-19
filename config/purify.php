@@ -58,7 +58,8 @@ return [
         'rich_text' => [
             'Core.Encoding' => 'utf-8',
             'HTML.Doctype' => 'HTML 4.01 Transitional',
-            'HTML.Allowed' => 'p,br,strong,b,em,i,u,s,del,h2,h3,h4,ul,ol,li,blockquote,code,pre,hr,a[href|title|target|rel]',
+            // img: only our own uploads survive (App\Support\HtmlSanitizer drops any other src).
+            'HTML.Allowed' => 'p,br,strong,b,em,i,u,s,del,h2,h3,h4,ul,ol,li,blockquote,code,pre,hr,a[href|title|target|rel],img[src|alt]',
             'HTML.ForbiddenElements' => '',
             'CSS.AllowedProperties' => '',
             'URI.AllowedSchemes' => ['http' => true, 'https' => true, 'mailto' => true],

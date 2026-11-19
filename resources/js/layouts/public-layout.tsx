@@ -2,6 +2,7 @@ import { Link, usePage } from '@inertiajs/react';
 import { Menu } from 'lucide-react';
 import type { ReactNode } from 'react';
 import AppLogo from '@/components/app-logo';
+import { AppearanceMenu } from '@/components/appearance-menu';
 import { Button } from '@/components/ui/button';
 import {
     Sheet,
@@ -76,8 +77,11 @@ export default function PublicLayout({ children }: { children: ReactNode }) {
                         ))}
                     </nav>
 
-                    <div className="ml-auto hidden items-center gap-2 md:flex">
-                        {authButtons}
+                    <div className="ml-auto flex items-center gap-2">
+                        <AppearanceMenu />
+                        <div className="hidden items-center gap-2 md:flex">
+                            {authButtons}
+                        </div>
                     </div>
 
                     <Sheet>
@@ -85,7 +89,7 @@ export default function PublicLayout({ children }: { children: ReactNode }) {
                             <Button
                                 variant="ghost"
                                 size="icon"
-                                className="ml-auto md:hidden"
+                                className="md:hidden"
                                 aria-label="Buka menu"
                             >
                                 <Menu className="size-5" />

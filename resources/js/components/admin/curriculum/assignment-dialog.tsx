@@ -158,6 +158,7 @@ export function AssignmentDialog({
                             Instruksi
                         </Label>
                         <RichTextEditor
+                            images
                             id="assignment-instructions"
                             value={form.data.instructions_html}
                             onChange={(html) =>

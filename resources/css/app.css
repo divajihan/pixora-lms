@@ -204,4 +204,10 @@
     .rich-text hr {
         @apply border-border;
     }
+    .rich-text img {
+        @apply h-auto max-w-full rounded-md border border-border;
+    }
+    .rich-text img.ProseMirror-selectednode {
+        @apply ring-2 ring-ring;
+    }
 }

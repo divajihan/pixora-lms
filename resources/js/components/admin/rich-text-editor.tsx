@@ -1,3 +1,4 @@
+import Image from '@tiptap/extension-image';
 import { EditorContent, useEditor, useEditorState } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import type { LucideIcon } from 'lucide-react';
@@ -6,7 +7,9 @@ import {
     Code,
     Heading2,
     Heading3,
+    ImagePlus,
     Italic,
+    Loader2,
     Link as LinkIcon,
     List,
     ListOrdered,
@@ -16,14 +19,58 @@ import {
     Underline,
     Undo,
 } from 'lucide-react';
-import { useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import type { ChangeEvent } from 'react';
+import { toast } from 'sonner';
 import { Toggle } from '@/components/ui/toggle';
 import { cn } from '@/lib/utils';
+import { store as storeContentImage } from '@/routes/admin/content-images';
+
+function csrfToken(): string {
+    const match = document.cookie.match(/(?:^|;\s*)XSRF-TOKEN=([^;]+)/);
+
+    return match ? decodeURIComponent(match[1]) : '';
+}
+
+/** Uploads one image (re-encoded on the server) and returns its URL. */
+async function uploadImage(file: File): Promise<string> {
+    const body = new FormData();
+    body.append('image', file);
+
+    const response = await fetch(storeContentImage().url, {
+        method: 'POST',
+        body,
+        credentials: 'same-origin',
+        headers: {
+            Accept: 'application/json',
+            'X-XSRF-TOKEN': csrfToken(),
+            'X-Requested-With': 'XMLHttpRequest',
+        },
+    });
+    const data = (await response.json().catch(() => ({}))) as {
+        url?: string;
+        message?: string;
+        errors?: Record<string, string[]>;
+    };
+
+    if (!response.ok || !data.url) {
+        throw new Error(
+            data.errors?.image?.[0] ??
+                (response.status === 413
+                    ? 'Ukuran gambar terlalu besar.'
+                    : (data.message ?? 'Gambar gagal diunggah.')),
+        );
+    }
+
+    return data.url;
+}
 
 /**
- * Rich text editor for lesson summaries. The toolbar only offers formatting
- * that the server allowlist keeps (config/purify.php "rich_text"); the HTML is
- * sanitised again on the server before saving.
+ * Rich text editor for lesson notes and assignment instructions. The toolbar
+ * only offers formatting that the server allowlist keeps (config/purify.php
+ * "rich_text"); the HTML is sanitised again on the server before saving.
+ * With `images`, a toolbar button uploads example images (JPEG/PNG/WebP,
+ * re-encoded on the server); only those uploads survive sanitising.
  */
 export function RichTextEditor({
     id,
@@ -31,15 +78,21 @@ export function RichTextEditor({
     onChange,
     invalid = false,
     placeholder,
+    images = false,
 }: {
     id?: string;
     value: string;
     onChange: (html: string) => void;
     invalid?: boolean;
     placeholder?: string;
+    images?: boolean;
 }) {
+    const fileInput = useRef<HTMLInputElement>(null);
+    const [uploading, setUploading] = useState(false);
+
     const editor = useEditor({
         extensions: [
+            Image.configure({ inline: false, allowBase64: false }),
             StarterKit.configure({
                 heading: { levels: [2, 3] },
                 link: {
@@ -56,7 +109,7 @@ export function RichTextEditor({
                 ...(id ? { id } : {}),
                 role: 'textbox',
                 'aria-multiline': 'true',
-                'aria-label': placeholder ?? 'Ringkasan',
+                'aria-label': placeholder ?? 'Catatan',
                 class: 'rich-text min-h-40 px-3 py-2 outline-none',
             },
         },
@@ -126,6 +179,36 @@ export function RichTextEditor({
             .extendMarkRange('link')
             .setLink({ href: url.trim() })
             .run();
+    };
+
+    const onFiles = async (event: ChangeEvent<HTMLInputElement>) => {
+        const files = Array.from(event.target.files ?? []);
+        event.target.value = '';
+
+        if (!editor || files.length === 0) {
+            return;
+        }
+
+        setUploading(true);
+
+        try {
+            for (const file of files) {
+                const src = await uploadImage(file);
+                editor
+                    .chain()
+                    .focus()
+                    .setImage({ src, alt: file.name.replace(/\.[^.]+$/, '') })
+                    .run();
+            }
+        } catch (error) {
+            toast.error(
+                error instanceof Error
+                    ? error.message
+                    : 'Gambar gagal diunggah.',
+            );
+        } finally {
+            setUploading(false);
+        }
     };
 
     const tools: {
@@ -224,6 +307,32 @@ export function RichTextEditor({
                         <tool.icon className="size-4" />
                     </Toggle>
                 ))}
+                {images && (
+                    <>
+                        <Toggle
+                            size="sm"
+                            pressed={false}
+                            onPressedChange={() => fileInput.current?.click()}
+                            aria-label="Sisipkan gambar"
+                            title="Sisipkan gambar (JPEG, PNG, WebP)"
+                            disabled={!editor || uploading}
+                        >
+                            {uploading ? (
+                                <Loader2 className="size-4 animate-spin" />
+                            ) : (
+                                <ImagePlus className="size-4" />
+                            )}
+                        </Toggle>
+                        <input
+                            ref={fileInput}
+                            type="file"
+                            accept="image/jpeg,image/png,image/webp"
+                            multiple
+                            hidden
+                            onChange={onFiles}
+                        />
+                    </>
+                )}
                 <span className="mx-1 h-5 w-px bg-border" aria-hidden />
                 <Toggle
                     size="sm"

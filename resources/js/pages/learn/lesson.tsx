@@ -174,12 +174,10 @@ export default function LearnLesson({
                             )}
 
                             <section
-                                aria-label="Rangkuman"
+                                aria-label="Catatan"
                                 className="rounded-lg border p-4"
                             >
-                                <h2 className="mb-3 font-semibold">
-                                    Rangkuman
-                                </h2>
+                                <h2 className="mb-3 font-semibold">Catatan</h2>
                                 {content.summary_html ? (
                                     // Sanitised server-side (HtmlSanitizer) before it was saved.
                                     <div
@@ -190,7 +188,7 @@ export default function LearnLesson({
                                     />
                                 ) : (
                                     <p className="text-sm text-muted-foreground">
-                                        Belum ada rangkuman untuk lesson ini.
+                                        Belum ada catatan untuk lesson ini.
                                     </p>
                                 )}
                             </section>
