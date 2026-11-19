@@ -3,8 +3,8 @@
 namespace App\Actions\Certificates;
 
 use App\Models\Certificate;
-use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Pagination\LengthAwarePaginator;
 
 /**
  * Admin/staff certificate list: search (number, recipient name, course title,

@@ -1,16 +1,19 @@
 <?php
 
 use App\Enums\CourseInstructorRole;
+use App\Enums\LessonProgressStatus;
 use App\Enums\Role;
 use App\Models\Batch;
 use App\Models\Course;
 use App\Models\Enrollment;
 use App\Models\Lesson;
+use App\Models\LessonProgress;
 use App\Models\Module;
 use App\Models\Order;
 use App\Models\User;
 use App\Services\Payment\FakeGateway;
 use Illuminate\Testing\TestResponse;
+use Tests\TestCase;
 
 /**
  * Shared test helpers (loaded by tests/Pest.php).
@@ -92,4 +95,45 @@ function dripSetup(string $startsOn = '2026-11-15', array $courseAttributes = []
     ]);
 
     return compact('course', 'batch', 'lessons', 'preview', 'draft', 'enrollment', 'student');
+}
+
+/**
+ * A published non-drip course (certificates on) with two published lessons and
+ * an active student enrollment.
+ *
+ * @return array{course: Course, lessons: array<int, Lesson>, enrollment: Enrollment, student: User}
+ */
+function certificateCourse(array $courseAttributes = []): array
+{
+    $course = Course::factory()->published()->create(['drip_enabled' => false, 'certificate_enabled' => true, 'title' => 'Desain Logo', ...$courseAttributes]);
+    $module = Module::factory()->for($course)->create(['position' => 0]);
+    $lessons = [];
+    foreach ([0, 1] as $position) {
+        $lessons[] = Lesson::factory()->for($module)->published()->create(['course_id' => $course->id, 'position' => $position]);
+    }
+    $course->instructors()->attach(instructorUser(), ['role' => CourseInstructorRole::Lead->value]);
+    $student = User::factory()->create(['name' => 'Siti Aminah'])->assignRole('student');
+    $enrollment = Enrollment::factory()->create(['user_id' => $student->id, 'course_id' => $course->id]);
+
+    return compact('course', 'lessons', 'enrollment', 'student');
+}
+
+/**
+ * Marks the lessons completed for the enrollment.
+ *
+ * @param  iterable<Lesson>  $lessons
+ */
+function completeLessons(Enrollment $enrollment, iterable $lessons): void
+{
+    foreach ($lessons as $lesson) {
+        LessonProgress::updateOrCreate(
+            ['enrollment_id' => $enrollment->id, 'lesson_id' => $lesson->id],
+            ['status' => LessonProgressStatus::Completed, 'completed_at' => now()],
+        );
+    }
+}
+
+function actingAsStudent(User $student): TestCase
+{
+    return test()->actingAs($student);
 }
