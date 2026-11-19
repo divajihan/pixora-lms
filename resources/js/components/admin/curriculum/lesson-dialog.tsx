@@ -1,5 +1,6 @@
 import { useForm } from '@inertiajs/react';
-import { useEffect } from 'react';
+import { Minus, Plus } from 'lucide-react';
+import { useEffect, useRef } from 'react';
 import type { FormEvent } from 'react';
 import { RichTextEditor } from '@/components/admin/rich-text-editor';
 import InputError from '@/components/input-error';
@@ -24,6 +25,7 @@ import {
 } from '@/components/ui/select';
 import { Spinner } from '@/components/ui/spinner';
 import { Textarea } from '@/components/ui/textarea';
+import { useYouTubeDuration, youtubeId } from '@/hooks/use-youtube-duration';
 import { formatDuration } from '@/lib/format';
 import { store, update } from '@/routes/admin/lessons';
 import type {
@@ -115,6 +117,37 @@ export function LessonDialog({
         statuses.find((status) => status.value === data.status)?.label ??
         data.status;
     const isLive = data.type === 'live';
+
+    // Duration follows the video length (read in the browser) whenever a new
+    // video is chosen; the admin can still adjust it. An existing lesson keeps
+    // its stored duration unless its video changes.
+    const autoFilledFor = useRef<string | null>(null);
+    const detected = useYouTubeDuration(open && !isLive ? data.video_url : '');
+
+    useEffect(() => {
+        if (open) {
+            autoFilledFor.current =
+                lesson?.duration_seconds && lesson.video_url
+                    ? youtubeId(lesson.video_url)
+                    : null;
+        }
+    }, [open, lesson?.id, lesson?.duration_seconds, lesson?.video_url]);
+
+    useEffect(() => {
+        if (
+            detected.status === 'done' &&
+            detected.videoId !== autoFilledFor.current
+        ) {
+            autoFilledFor.current = detected.videoId;
+            setData('duration_seconds', String(detected.seconds));
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- setData is stable enough; react to detection only
+    }, [detected]);
+
+    const adjustDuration = (delta: number) => {
+        const current = Number(data.duration_seconds) || 0;
+        setData('duration_seconds', String(Math.max(1, current + delta)));
+    };
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
@@ -343,13 +376,14 @@ export function LessonDialog({
                     )}
 
                     <div className="grid gap-2">
-                        <Label htmlFor="lesson-summary">Ringkasan materi</Label>
+                        <Label htmlFor="lesson-summary">Catatan materi</Label>
                         <RichTextEditor
+                            images
                             id="lesson-summary"
                             value={data.summary_html}
                             onChange={(html) => setData('summary_html', html)}
                             invalid={Boolean(errors.summary_html)}
-                            placeholder="Ringkasan materi"
+                            placeholder="Catatan materi"
                         />
                         <InputError message={errors.summary_html} />
                     </div>
@@ -387,29 +421,70 @@ export function LessonDialog({
                             <Label htmlFor="lesson-duration">
                                 Durasi (detik)
                             </Label>
-                            <Input
-                                id="lesson-duration"
-                                type="number"
-                                min={1}
-                                inputMode="numeric"
-                                value={data.duration_seconds}
-                                onChange={(event) =>
-                                    setData(
-                                        'duration_seconds',
-                                        event.target.value,
-                                    )
-                                }
-                                placeholder="Opsional"
-                                aria-describedby="lesson-duration-help"
-                                aria-invalid={Boolean(errors.duration_seconds)}
-                            />
+                            <div className="flex items-center gap-1">
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="icon"
+                                    onClick={() => adjustDuration(-60)}
+                                    disabled={
+                                        (Number(data.duration_seconds) || 0) <=
+                                        1
+                                    }
+                                    aria-label="Kurangi 1 menit"
+                                    title="Kurangi 1 menit"
+                                >
+                                    <Minus />
+                                </Button>
+                                <Input
+                                    id="lesson-duration"
+                                    type="number"
+                                    min={1}
+                                    inputMode="numeric"
+                                    value={data.duration_seconds}
+                                    onChange={(event) =>
+                                        setData(
+                                            'duration_seconds',
+                                            event.target.value,
+                                        )
+                                    }
+                                    placeholder="Opsional"
+                                    aria-describedby="lesson-duration-help"
+                                    aria-invalid={Boolean(
+                                        errors.duration_seconds,
+                                    )}
+                                />
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="icon"
+                                    onClick={() => adjustDuration(60)}
+                                    aria-label="Tambah 1 menit"
+                                    title="Tambah 1 menit"
+                                >
+                                    <Plus />
+                                </Button>
+                            </div>
                             <p
                                 id="lesson-duration-help"
                                 className="text-xs text-muted-foreground"
+                                aria-live="polite"
                             >
                                 {data.duration_seconds
                                     ? `≈ ${formatDuration(Number(data.duration_seconds))}`
                                     : 'Contoh: 600 = 10 menit.'}
+                                {!isLive &&
+                                    detected.status === 'loading' &&
+                                    ' · Membaca durasi video…'}
+                                {!isLive &&
+                                    detected.status === 'done' &&
+                                    (Number(data.duration_seconds) ===
+                                    detected.seconds
+                                        ? ' · otomatis dari video, bisa diubah'
+                                        : ` · durasi video ${formatDuration(detected.seconds)}`)}
+                                {!isLive &&
+                                    detected.status === 'error' &&
+                                    ' · durasi video tidak terbaca, isi manual'}
                             </p>
                             <InputError message={errors.duration_seconds} />
                         </div>
