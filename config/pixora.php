@@ -68,6 +68,23 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Content images (lesson notes, assignment instructions)
+    |--------------------------------------------------------------------------
+    |
+    | Uploaded from the rich text editor (admin), re-encoded (no EXIF), stored
+    | on the public disk under a random name and referenced by a relative URL.
+    | Rich text keeps <img> only when its src points to this directory.
+    |
+    */
+
+    'content_images' => [
+        'directory' => 'content-images',
+        'max_kb' => (int) env('CONTENT_IMAGE_MAX_KB', 5120),
+        'max_dimension' => 1600,
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Certificates
     |--------------------------------------------------------------------------
     |

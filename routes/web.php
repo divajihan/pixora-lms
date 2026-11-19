@@ -4,6 +4,7 @@ use App\Http\Controllers\Admin\AssignmentController as AdminAssignmentController
 use App\Http\Controllers\Admin\BatchController;
 use App\Http\Controllers\Admin\CertificateController as AdminCertificateController;
 use App\Http\Controllers\Admin\CertificateSettingsController;
+use App\Http\Controllers\Admin\ContentImageController;
 use App\Http\Controllers\Admin\CourseController as AdminCourseController;
 use App\Http\Controllers\Admin\CourseInstructorController;
 use App\Http\Controllers\Admin\CourseStatusController;
@@ -159,6 +160,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
             Route::delete('lesson/{lesson}', [LessonController::class, 'destroy'])->name('lessons.destroy');
 
             Route::post('kursus/{course}/tugas', [AdminAssignmentController::class, 'store'])->name('assignments.store');
+
+            // Images inside lesson notes / assignment instructions (rich text editor).
+            Route::post('gambar-konten', [ContentImageController::class, 'store'])
+                ->middleware('throttle:uploads')->name('content-images.store');
             Route::put('tugas/{assignment}', [AdminAssignmentController::class, 'update'])->name('assignments.update');
             Route::delete('tugas/{assignment}', [AdminAssignmentController::class, 'destroy'])->name('assignments.destroy');
         });

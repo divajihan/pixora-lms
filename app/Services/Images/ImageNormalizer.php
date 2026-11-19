@@ -22,7 +22,10 @@ class ImageNormalizer
         IMAGETYPE_WEBP => ['mime' => 'image/webp', 'ext' => 'webp', 'label' => 'WebP', 'flag' => IMG_WEBP, 'reader' => 'imagecreatefromwebp'],
     ];
 
-    public function normalize(string $path): NormalizedImage
+    /**
+     * @param  int|null  $maxDimension  Longest side; default pixora.assignments.max_dimension.
+     */
+    public function normalize(string $path, ?int $maxDimension = null): NormalizedImage
     {
         $info = @getimagesize($path);
 
@@ -55,7 +58,7 @@ class ImageNormalizer
             $image = $this->applyExifOrientation($image, $path);
         }
 
-        $image = $this->fit($image, (int) config('pixora.assignments.max_dimension', 3000));
+        $image = $this->fit($image, $maxDimension ?? (int) config('pixora.assignments.max_dimension', 3000));
         $thumbnail = $this->fit($image, (int) config('pixora.assignments.thumbnail_dimension', 480), copy: true);
 
         return new NormalizedImage(
