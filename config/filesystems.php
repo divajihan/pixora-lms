@@ -64,7 +64,9 @@ return [
         'public' => [
             'driver' => 'local',
             'root' => storage_path('app/public'),
-            'url' => rtrim((string) env('APP_URL', 'http://localhost'), '/').'/storage',
+            // Root-relative by default so images work from any host (LAN IP on a
+            // phone, staging domain); set PUBLIC_DISK_URL for a CDN.
+            'url' => env('PUBLIC_DISK_URL', '/storage'),
             'visibility' => 'public',
             'throw' => false,
             'report' => false,

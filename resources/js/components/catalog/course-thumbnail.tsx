@@ -1,8 +1,10 @@
 import { GraduationCap } from 'lucide-react';
+import { useState } from 'react';
 import { cn } from '@/lib/utils';
 
 /**
- * Course thumbnail with a neutral, token-based placeholder when none is uploaded.
+ * Course thumbnail with a neutral, token-based placeholder when none is
+ * uploaded or the image fails to load (never a broken-image icon).
  */
 export function CourseThumbnail({
     src,
@@ -13,6 +15,9 @@ export function CourseThumbnail({
     title: string;
     className?: string;
 }) {
+    const [failedSrc, setFailedSrc] = useState<string | null>(null);
+    const showImage = src !== null && src !== failedSrc;
+
     return (
         <div
             className={cn(
@@ -20,11 +25,13 @@ export function CourseThumbnail({
                 className,
             )}
         >
-            {src ? (
+            {showImage ? (
                 <img
                     src={src}
                     alt={title}
                     loading="lazy"
+                    decoding="async"
+                    onError={() => setFailedSrc(src)}
                     className="size-full object-cover"
                 />
             ) : (
