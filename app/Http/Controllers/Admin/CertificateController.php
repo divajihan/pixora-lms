@@ -39,10 +39,11 @@ class CertificateController extends Controller
             'batch' => $request->integer('batch') ?: null,
         ];
 
-        $certificates = $list->handle($filters);
+        $certificates = $list->handle($filters)
+            ->through(fn (Certificate $certificate) => AdminCertificateResource::make($certificate)->resolve());
 
         return Inertia::render('admin/certificates/index', [
-            'certificates' => AdminCertificateResource::collection($certificates),
+            'certificates' => $certificates,
             'filters' => [
                 'q' => $filters['q'],
                 'status' => $filters['status'],

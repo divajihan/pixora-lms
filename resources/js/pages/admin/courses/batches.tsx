@@ -68,6 +68,7 @@ function BatchDialog({
         starts_on: '',
         ends_on: '',
         registration_closes_on: '',
+        certificates_open_on: '',
         capacity: '',
         is_published: true,
     });
@@ -79,6 +80,7 @@ function BatchDialog({
                 starts_on: batch?.starts_on ?? '',
                 ends_on: batch?.ends_on ?? '',
                 registration_closes_on: batch?.registration_closes_on ?? '',
+                certificates_open_on: batch?.certificates_open_on ?? '',
                 capacity: batch?.capacity ? String(batch.capacity) : '',
                 is_published: batch?.is_published ?? true,
             });
@@ -190,6 +192,30 @@ function BatchDialog({
                                 placeholder="Tidak terbatas"
                             />
                             <InputError message={form.errors.capacity} />
+                        </div>
+                        <div className="grid gap-2 sm:col-span-2">
+                            <Label htmlFor="batch-certificates">
+                                Klaim sertifikat dibuka (opsional)
+                            </Label>
+                            <Input
+                                id="batch-certificates"
+                                type="date"
+                                min={form.data.starts_on || undefined}
+                                value={form.data.certificates_open_on}
+                                onChange={(e) =>
+                                    form.setData(
+                                        'certificates_open_on',
+                                        e.target.value,
+                                    )
+                                }
+                            />
+                            <p className="text-xs text-muted-foreground">
+                                Pukul 00.00 WIB. Kosongkan untuk membuka klaim
+                                sehari setelah tanggal selesai batch.
+                            </p>
+                            <InputError
+                                message={form.errors.certificates_open_on}
+                            />
                         </div>
                     </div>
                     <label className="flex items-start gap-3">
@@ -332,6 +358,12 @@ export default function AdminBatches({ course, batches }: Props) {
                                                 {formatDateRange(
                                                     batch.starts_on,
                                                     batch.ends_on,
+                                                )}
+                                            </p>
+                                            <p className="text-xs text-muted-foreground">
+                                                Klaim sertifikat{' '}
+                                                {formatDate(
+                                                    batch.certificates_open_at,
                                                 )}
                                             </p>
                                             {batch.registration_closes_on && (

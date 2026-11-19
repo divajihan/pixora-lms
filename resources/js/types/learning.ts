@@ -17,6 +17,8 @@ export type BatchData = {
     starts_on: string;
     ends_on: string;
     registration_closes_on: string | null;
+    certificates_open_on: string | null;
+    certificates_open_at: string;
     capacity: number | null;
     is_published: boolean;
     status: 'upcoming' | 'running' | 'finished';

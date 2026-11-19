@@ -44,7 +44,18 @@ type Student = {
     status_label: string;
     progress_percent: number;
     enrolled_at: string;
+    certificate: {
+        status: 'claimed' | 'claimable' | 'not_eligible' | 'disabled';
+        label: string;
+    };
 };
+
+const certificateVariant = {
+    claimed: 'default',
+    claimable: 'secondary',
+    not_eligible: 'outline',
+    disabled: 'outline',
+} as const;
 
 type Props = {
     course: { id: number; title: string; slug: string };
@@ -231,7 +242,7 @@ export default function ClassStudents(props: Props) {
                     />
                 ) : (
                     <div className="overflow-x-auto rounded-lg border">
-                        <table className="w-full min-w-[640px] text-sm">
+                        <table className="w-full min-w-[760px] text-sm">
                             <thead className="bg-muted/50 text-left text-muted-foreground">
                                 <tr>
                                     <th
@@ -251,6 +262,12 @@ export default function ClassStudents(props: Props) {
                                         className="px-4 py-3 font-medium"
                                     >
                                         Status
+                                    </th>
+                                    <th
+                                        scope="col"
+                                        className="px-4 py-3 font-medium"
+                                    >
+                                        Sertifikat
                                     </th>
                                     <th
                                         scope="col"
@@ -301,6 +318,18 @@ export default function ClassStudents(props: Props) {
                                                 }
                                             >
                                                 {student.status_label}
+                                            </Badge>
+                                        </td>
+                                        <td className="px-4 py-3">
+                                            <Badge
+                                                variant={
+                                                    certificateVariant[
+                                                        student.certificate
+                                                            .status
+                                                    ]
+                                                }
+                                            >
+                                                {student.certificate.label}
                                             </Badge>
                                         </td>
                                         <td className="px-4 py-3">

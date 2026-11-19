@@ -24,12 +24,12 @@ class ListAdminCertificates
         return Certificate::query()
             ->with(['user:id,name,email', 'issuer:id,name', 'revoker:id,name'])
             ->when($search !== '', function (Builder $query) use ($search): void {
-                $like = '%'.str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $search).'%';
+                $like = '%'.str_replace(['!', '%', '_'], ['!!', '!%', '!_'], $search).'%';
                 $query->where(fn (Builder $query) => $query
-                    ->where('certificate_number', 'like', $like)
-                    ->orWhere('recipient_name', 'like', $like)
-                    ->orWhere('course_title', 'like', $like)
-                    ->orWhere('verification_code', 'like', $like));
+                    ->whereRaw("certificate_number LIKE ? ESCAPE '!'", [$like])
+                    ->orWhereRaw("recipient_name LIKE ? ESCAPE '!'", [$like])
+                    ->orWhereRaw("course_title LIKE ? ESCAPE '!'", [$like])
+                    ->orWhereRaw("verification_code LIKE ? ESCAPE '!'", [$like]));
             })
             ->when(($filters['status'] ?? null) === 'aktif', fn (Builder $query) => $query->whereNull('revoked_at'))
             ->when(($filters['status'] ?? null) === 'dicabut', fn (Builder $query) => $query->whereNotNull('revoked_at'))
