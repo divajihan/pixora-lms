@@ -146,11 +146,21 @@ docs/                   # rancangan (jangan diformat ulang); docs/screenshots/ u
       terbuka** bagi siswa tersebut (`LessonPolicy::viewContent` → `ComputeLessonAccess`). Lesson terkunci hanya mengirim
       judul + tanggal buka. Test: `tests/Feature/Learning/LearnPlayerTest.php`.
     - `CurriculumLessonResource` (berisi `video_url`) hanya untuk layar staf (admin/instruktur yang ditugaskan).
-- **Rich text** (`lessons.summary_html`) selalu disaring di server dengan `HtmlSanitizer` sebelum disimpan (allowlist di
-  `config/purify.php` profil `rich_text`: tanpa script, event handler, style, iframe, gambar). Frontend merender HTML yang
-  sudah bersih (`dangerouslySetInnerHTML` hanya untuk data ini). Toolbar editor hanya menawarkan format yang lolos allowlist.
+- **Rich text** (`lessons.summary_html` = "Catatan" di UI, `assignments.instructions_html`) selalu disaring di server dengan
+  `HtmlSanitizer` sebelum disimpan (allowlist di `config/purify.php` profil `rich_text`: tanpa script, event handler, style,
+  iframe). **Gambar** hanya `<img src alt>` yang src-nya unggahan kita sendiri
+  (`/storage/content-images/<40 karakter acak>.jpg|png|webp`); src lain (eksternal, `data:`, folder lain) dibuang.
+  Unggah lewat `Admin\ContentImageController` (`courses.manage`, throttle, `AllowedImage` + `ImageNormalizer`: EXIF dibuang,
+  sisi terpanjang 1600 px, maks. `CONTENT_IMAGE_MAX_KB`). Gambar yang tidak dipakai lagi belum dibersihkan otomatis.
+  Frontend merender HTML yang sudah bersih (`dangerouslySetInnerHTML` hanya untuk data ini).
 - **Video**: semua URL video divalidasi dan di-parse lewat `VideoProvider` (rule `VideoUrl`); embed memakai `youtube-nocookie.com`.
 - **Upload**: gambar sampul divalidasi (jpg/png/webp, ≤ 2 MB), disimpan di disk `public` dengan nama acak (`store()`/hashName).
+  URL disk `public` **relatif** (`/storage/...`, `PUBLIC_DISK_URL` untuk CDN) agar gambar tetap tampil saat aplikasi dibuka
+  dari host lain (HP lewat IP LAN, domain staging); jangan kembali ke `APP_URL` absolut.
+- **Durasi lesson**: dialog lesson membaca durasi video di browser (`useYouTubeDuration`, IFrame API, tanpa API key) dan
+  mengisinya otomatis saat video berganti; admin tetap bisa mengubah (tombol −/+ 1 menit). Video yang tidak bisa di-embed
+  diberi peringatan.
+- **Tampilan**: terang/gelap/sistem lewat `AppearanceMenu` di header aplikasi & publik (sama dengan Pengaturan → Tampilan).
 - **Admin terakhir**: akun admin aktif terakhir tidak bisa dinonaktifkan, diturunkan perannya, atau menghapus akunnya sendiri
   (`User::isLastActiveAdmin()`, dipakai `UpdateUserAccount` dan `ProfileDeleteRequest`).
 - **Hapus = arsip**: kursus, modul, dan lesson memakai SoftDeletes; hapus modul ikut mengarsipkan lesson-nya (`DeleteModule`).
