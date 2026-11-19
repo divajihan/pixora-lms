@@ -260,6 +260,14 @@ export function LessonDialog({
                                 Gunakan video YouTube berstatus unlisted. Hanya
                                 ID video yang disimpan.
                             </p>
+                            {detected.status === 'error' &&
+                                detected.reason !== 'unknown' && (
+                                    <p className="text-xs text-destructive">
+                                        {detected.reason === 'no_embed'
+                                            ? 'Video ini tidak bisa diputar di luar YouTube (penyematan dinonaktifkan atau dibatasi), jadi siswa mungkin tidak bisa memutarnya. Aktifkan "Izinkan penyematan" di YouTube Studio atau gunakan video lain.'
+                                            : 'Video tidak ditemukan atau berstatus privat. Gunakan video unlisted/publik.'}
+                                    </p>
+                                )}
                             <InputError message={errors.video_url} />
                         </div>
                     )}

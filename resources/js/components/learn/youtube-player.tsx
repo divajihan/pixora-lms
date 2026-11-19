@@ -1,6 +1,12 @@
 import { useEffect, useRef } from 'react';
 
-export type YTPlayer = { destroy: () => void; getDuration?: () => number };
+export type YTPlayer = {
+    destroy: () => void;
+    getDuration?: () => number;
+    mute?: () => void;
+    playVideo?: () => void;
+    pauseVideo?: () => void;
+};
 type YTNamespace = {
     Player: new (
         element: HTMLElement,
@@ -11,8 +17,11 @@ type YTNamespace = {
             playerVars?: Record<string, number | string>;
             events: {
                 onReady?: (event: { target: YTPlayer }) => void;
-                onError?: () => void;
-                onStateChange?: (event: { data: number }) => void;
+                onError?: (event: { data: number }) => void;
+                onStateChange?: (event: {
+                    data: number;
+                    target: YTPlayer;
+                }) => void;
             };
         },
     ) => YTPlayer;
